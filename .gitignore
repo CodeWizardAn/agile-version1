@@ -1,0 +1,21 @@
+# --- Backend (Python) ---
+backend/.env
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/mentorship.db
+
+# --- Frontend (Node/React) ---
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+frontend/.env
+
+# --- Editor/OS ---
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.log
