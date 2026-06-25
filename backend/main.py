@@ -75,44 +75,59 @@ def validate_password(password: str) -> bool:
 
 
 # ── ID GENERATORS ─────────────────────────────────────────────────────────────
+# All IDs are sequential (YY = last 2 digits of year, N = zero-padded count)
 
-def generate_user_id() -> str:
+def generate_user_id(db) -> str:
     year = str(datetime.now().year)[2:]
-    return f"{year}{secrets.token_hex(3).upper()}"
+    count = db.query(User).count() + 1
+    return f"{year}{count:03d}"
 
-def generate_mentor_id() -> str:
-    return f"MTR{secrets.token_hex(3).upper()}"
+def generate_mentor_id(db) -> str:
+    count = db.query(Mentor).count() + 1
+    return f"MTR{count:04d}"
 
-def generate_program_id() -> str:
-    return f"PRG{secrets.token_hex(3).upper()}"
+def generate_program_id(db) -> str:
+    count = db.query(Program).count() + 1
+    return f"PRG{count:04d}"
 
-def generate_invite_id() -> str:
-    return f"INV{secrets.token_hex(3).upper()}"
+def generate_invite_id(db) -> str:
+    count = db.query(MentorInvite).count() + 1
+    return f"INV{count:04d}"
 
-def generate_enrollment_id() -> str:
+def generate_enrollment_id(db, program_title: str = "") -> str:
     year = str(datetime.now().year)[2:]
-    return f"ENR{year}{secrets.token_hex(4).upper()}"
+    raw = "".join(c for c in program_title if c.isalpha())
+    code = raw[:2].upper() if len(raw) >= 2 else (raw.upper() + "X")[:2]
+    count = db.query(Enrollment).filter(Enrollment.program_id != None).count() + 1
+    return f"{year}{code}{count:04d}"
 
-def generate_session_id() -> str:
-    return f"SES{secrets.token_hex(3).upper()}"
+def generate_session_id(db) -> str:
+    count = db.query(MentorSession).count() + 1
+    return f"SES{count:04d}"
 
-def generate_attendance_id() -> str:
-    return f"ATT{secrets.token_hex(3).upper()}"
+def generate_attendance_id(db) -> str:
+    count = db.query(Attendance).count() + 1
+    return f"ATT{count:04d}"
 
-def generate_cert_id() -> str:
-    return f"CRT{secrets.token_hex(3).upper()}"
+def generate_cert_id(db) -> str:
+    count = db.query(MentorCertificate).count() + 1
+    return f"CRT{count:04d}"
 
-def generate_resource_id() -> str:
-    return f"RES{secrets.token_hex(3).upper()}"
+def generate_resource_id(db) -> str:
+    count = db.query(Resource).count() + 1
+    return f"RES{count:04d}"
 
-def generate_otp_id() -> str:
-    return f"OTP{secrets.token_hex(3).upper()}"
+def generate_otp_id(db) -> str:
+    count = db.query(EmailOTP).count() + 1
+    return f"OTP{count:04d}"
 
-def generate_progress_id() -> str:
-    return f"VP{secrets.token_hex(3).upper()}"
+def generate_progress_id(db) -> str:
+    count = db.query(VideoProgress).count() + 1
+    return f"VP{count:04d}"
 
-def generate_completion_id() -> str:
-    return f"SC{secrets.token_hex(3).upper()}"
+def generate_completion_id(db) -> str:
+    count = db.query(SessionCompletion).count() + 1
+    return f"SC{count:04d}"
 
 
 # ── AUTH HELPER ───────────────────────────────────────────────────────────────
@@ -302,7 +317,7 @@ def signup(role: str, body: SignupBody, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == body.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    user_id = generate_user_id()
+    user_id = generate_user_id(db)
     user = User(
         user_id=user_id, full_name=body.full_name, email=body.email,
         password_hash=hash_password(body.password), role=role.lower(), status="unverified"
@@ -311,14 +326,14 @@ def signup(role: str, body: SignupBody, db: Session = Depends(get_db)):
     db.flush()
 
     if role == "mentor":
-        mentor = Mentor(mentor_profile_id=generate_mentor_id(), user_id=user_id)
+        mentor = Mentor(mentor_profile_id=generate_mentor_id(db), user_id=user_id)
         db.add(mentor)
         invite.is_used = True
         invite.used_by = user_id
 
     otp_code = str(random.randint(100000, 999999))
     otp = EmailOTP(
-        otp_id=generate_otp_id(), user_id=user_id, otp_code=otp_code,
+        otp_id=generate_otp_id(db), user_id=user_id, otp_code=otp_code,
         expires_at=datetime.now(timezone.utc) + timedelta(minutes=5)
     )
     db.add(otp)
@@ -394,7 +409,7 @@ def resend_otp(body: ResendOTPBody, db: Session = Depends(get_db)):
 
     otp_code = str(random.randint(100000, 999999))
     otp = EmailOTP(
-        otp_id=generate_otp_id(), user_id=body.user_id, otp_code=otp_code,
+        otp_id=generate_otp_id(db), user_id=body.user_id, otp_code=otp_code,
         expires_at=datetime.now(timezone.utc) + timedelta(minutes=5)
     )
     db.add(otp)
@@ -469,7 +484,7 @@ def admin_dashboard(current_user: User = Depends(require_admin), db: Session = D
 def generate_invite(body: GenerateInviteBody, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
     invite_code = secrets.token_hex(6).upper()
     invite = MentorInvite(
-        invite_id=generate_invite_id(), invite_code=invite_code,
+        invite_id=generate_invite_id(db), invite_code=invite_code,
         created_by=current_user.user_id, is_used=False
     )
     db.add(invite)
@@ -536,7 +551,7 @@ def admin_create_program(body: CreateProgramBody, current_user: User = Depends(r
     if not body.title or not body.title[0].isupper():
         raise HTTPException(status_code=400, detail="Program title must start with a capital letter")
     program = Program(
-        program_id=generate_program_id(), title=body.title, description=body.description,
+        program_id=generate_program_id(db), title=body.title, description=body.description,
         category=body.category, duration_weeks=body.duration_weeks,
         start_date=body.start_date, end_date=body.end_date,
         created_by=current_user.user_id,
@@ -598,7 +613,7 @@ def admin_get_sessions(current_user: User = Depends(require_admin), db: Session 
 
 @app.post("/api/admin/sessions")
 def admin_create_session(body: CreateSessionBody, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
-    session_id = generate_session_id()
+    session_id = generate_session_id(db)
     session = MentorSession(
         session_id=session_id, program_id=body.program_id, mentor_id=body.mentor_id,
         title=body.title, description=body.description, session_type=body.session_type,
@@ -696,7 +711,7 @@ def admin_mark_attendance(session_id: str, body: MarkAttendanceBody,
         existing.status = body.status
     else:
         db.add(Attendance(
-            attendance_id=generate_attendance_id(),
+            attendance_id=generate_attendance_id(db),
             session_id=session_id, user_id=body.user_id, status=body.status
         ))
     db.commit()
@@ -724,7 +739,7 @@ async def admin_upload_resource(
     cld_type = "image" if file_type == "image" else "raw"
     url = upload_file(contents, folder="agilementor/resources", resource_type=cld_type)
     resource = Resource(
-        resource_id=generate_resource_id(), title=title, description=description or None,
+        resource_id=generate_resource_id(db), title=title, description=description or None,
         file_url=url, file_type=file_type, scope="program" if program_id else "global",
         program_id=program_id or None, session_id=session_id or None,
         uploaded_by=current_user.user_id,
@@ -848,7 +863,7 @@ def mentor_create_session(body: CreateSessionBody, current_user: User = Depends(
     if not program:
         raise HTTPException(status_code=403, detail="Not your program")
 
-    session_id = generate_session_id()
+    session_id = generate_session_id(db)
     session = MentorSession(
         session_id=session_id, program_id=body.program_id,
         mentor_id=mentor.mentor_profile_id, title=body.title, description=body.description,
@@ -942,7 +957,7 @@ async def mentor_upload_certificate(
     resource_type = "raw" if file_type == "pdf" else "image"
     url = upload_file(contents, folder="agilementor/certificates", resource_type=resource_type)
     cert = MentorCertificate(
-        cert_id=generate_cert_id(), mentor_profile_id=mentor.mentor_profile_id,
+        cert_id=generate_cert_id(db), mentor_profile_id=mentor.mentor_profile_id,
         title=title, file_url=url, file_type=file_type
     )
     db.add(cert)
@@ -990,7 +1005,7 @@ async def mentor_upload_resource(
     cld_type = "image" if file_type == "image" else "raw"
     url = upload_file(contents, folder="agilementor/resources", resource_type=cld_type)
     resource = Resource(
-        resource_id=generate_resource_id(), title=title, description=description or None,
+        resource_id=generate_resource_id(db), title=title, description=description or None,
         file_url=url, file_type=file_type, scope="program" if program_id else "global",
         program_id=program_id or None, session_id=session_id or None,
         uploaded_by=current_user.user_id,
@@ -1066,7 +1081,7 @@ def mentor_mark_attendance(session_id: str, body: MarkAttendanceBody,
         existing.status = body.status
     else:
         db.add(Attendance(
-            attendance_id=generate_attendance_id(),
+            attendance_id=generate_attendance_id(db),
             session_id=session_id, user_id=body.user_id, status=body.status
         ))
     db.commit()
@@ -1169,7 +1184,7 @@ def _do_enroll(program_id: str, current_user: User, db: Session):
     if existing and existing.status in ("enrolled", "active", "pending", "certificate_eligible", "completed"):
         raise HTTPException(status_code=400, detail="Already enrolled or request pending")
     enrollment = Enrollment(
-        enrollment_id=generate_enrollment_id(),
+        enrollment_id=generate_enrollment_id(db, program.title),
         user_id=current_user.user_id, program_id=program_id, status="pending"
     )
     db.add(enrollment)
@@ -1386,7 +1401,7 @@ def join_session(session_id: str, current_user: User = Depends(require_mentee), 
         Attendance.session_id == session_id, Attendance.user_id == current_user.user_id).first()
     if not attendance:
         attendance = Attendance(
-            attendance_id=generate_attendance_id(), session_id=session_id,
+            attendance_id=generate_attendance_id(db), session_id=session_id,
             user_id=current_user.user_id, status="absent",
             join_intervals="[]", total_minutes_present=0, is_auto_marked="false"
         )
@@ -1470,7 +1485,7 @@ def update_video_progress(payload: VideoSegmentBody, current_user: User = Depend
         VideoProgress.user_id == current_user.user_id, VideoProgress.session_id == payload.session_id).first()
     if not progress:
         progress = VideoProgress(
-            progress_id=generate_progress_id(), user_id=current_user.user_id,
+            progress_id=generate_progress_id(db), user_id=current_user.user_id,
             session_id=payload.session_id, watched_segments="[]", total_watched=0
         )
         db.add(progress)
@@ -1491,7 +1506,7 @@ def update_video_progress(payload: VideoSegmentBody, current_user: User = Depend
         SessionCompletion.session_id == payload.session_id
     ).first():
         completion = SessionCompletion(
-            completion_id=generate_completion_id(), user_id=current_user.user_id,
+            completion_id=generate_completion_id(db), user_id=current_user.user_id,
             session_id=payload.session_id, program_id=session.program_id, completed=True
         )
         db.add(completion)
