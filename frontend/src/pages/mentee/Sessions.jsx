@@ -95,11 +95,46 @@ function VideoModal({ session, initialProgress, onClose, onProgressUpdate }) {
     if (segStart.current !== null) { sendSegment(segStart.current, cur); segStart.current = null }
   }, [stopLocalTimer, sendSegment])
 
-  // ── YouTube IFrame API ───────────────────────────────────────────────────
+  // ── YouTube IFrame API (polling-based — avoids onStateChange reliability issues) ─
   useEffect(() => {
-    if (!isYT) return
+    if (!isYT || !ytVideoId) return
+    let destroyed = false
+
+    const startPolling = () => {
+      // Poll every second: read getPlayerState() directly instead of relying on events
+      localTimer.current = setInterval(() => {
+        if (destroyed || !ytRef.current?.getPlayerState) return
+        const state = ytRef.current.getPlayerState()
+        const PLAYING = 1, PAUSED = 2, ENDED = 0
+
+        if (state === PLAYING) {
+          // Capture duration if not yet known
+          if (!videoDurRef.current) {
+            videoDurRef.current = ytRef.current.getDuration() || 0
+          }
+          // Start segment if not already started
+          if (segStart.current === null) {
+            segStart.current = ytRef.current.getCurrentTime()
+          }
+          // Increment local counter and refresh bar
+          localSecsRef.current += 1
+          refreshDisplay()
+          // Flush to server every 10 active seconds
+          const cur = ytRef.current.getCurrentTime()
+          if (cur - segStart.current >= 10) {
+            sendSegment(segStart.current, cur)
+            segStart.current = cur
+          }
+        } else if ((state === PAUSED || state === ENDED) && segStart.current !== null) {
+          const cur = ytRef.current.getCurrentTime()
+          sendSegment(segStart.current, cur)
+          segStart.current = null
+        }
+      }, 1000)
+    }
 
     const setupPlayer = () => {
+      if (destroyed) return
       ytRef.current = new window.YT.Player('yt-container', {
         videoId: ytVideoId,
         playerVars: { controls: 1, rel: 0, modestbranding: 1 },
@@ -107,31 +142,10 @@ function VideoModal({ session, initialProgress, onClose, onProgressUpdate }) {
         height: '100%',
         events: {
           onReady: () => {
+            if (destroyed) return
             videoDurRef.current = ytRef.current.getDuration() || 0
             refreshDisplay()
-          },
-          onStateChange: e => {
-            const S = window.YT.PlayerState
-            if (e.data === S.PLAYING) {
-              if (!videoDurRef.current) {
-                videoDurRef.current = ytRef.current.getDuration() || 0
-                refreshDisplay()
-              }
-              segStart.current = ytRef.current.getCurrentTime()
-              startLocalTimer()
-              flushTimer.current = setInterval(() => {
-                const cur = ytRef.current?.getCurrentTime?.() ?? 0
-                if (segStart.current !== null) {
-                  sendSegment(segStart.current, cur)
-                  segStart.current = cur
-                }
-              }, 10000)
-            } else if (e.data === S.PAUSED || e.data === S.ENDED) {
-              clearInterval(flushTimer.current)
-              stopLocalTimer()
-              const cur = ytRef.current?.getCurrentTime?.() ?? 0
-              if (segStart.current !== null) { sendSegment(segStart.current, cur); segStart.current = null }
-            }
+            startPolling()
           }
         }
       })
@@ -151,12 +165,15 @@ function VideoModal({ session, initialProgress, onClose, onProgressUpdate }) {
     }
 
     return () => {
-      clearInterval(flushTimer.current)
+      destroyed = true
       clearInterval(localTimer.current)
+      clearInterval(flushTimer.current)
       const cur = ytRef.current?.getCurrentTime?.() ?? 0
       if (segStart.current !== null && cur > segStart.current) sendSegment(segStart.current, cur)
+      try { ytRef.current?.destroy?.() } catch {}
+      ytRef.current = null
     }
-  }, [isYT, sendSegment, startLocalTimer, stopLocalTimer, refreshDisplay])
+  }, [isYT, ytVideoId, sendSegment, refreshDisplay])
 
   // Cleanup for direct video on modal close
   useEffect(() => {
