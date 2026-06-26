@@ -92,14 +92,24 @@ export default function AdminDashboard() {
 
   const approve = async id => {
     setActing(id + 'a')
-    await api.post(`/api/admin/enrollment-requests/${id}/approve`).catch(() => {})
-    await loadRequests(); setActing(null)
+    try {
+      await api.post(`/api/admin/enrollment-requests/${id}/approve`)
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to approve')
+    } finally {
+      await loadRequests(); setActing(null)
+    }
   }
   const reject = async id => {
     if (!confirm('Reject this enrollment request?')) return
     setActing(id + 'r')
-    await api.post(`/api/admin/enrollment-requests/${id}/reject`).catch(() => {})
-    await loadRequests(); setActing(null)
+    try {
+      await api.post(`/api/admin/enrollment-requests/${id}/reject`)
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to reject')
+    } finally {
+      await loadRequests(); setActing(null)
+    }
   }
 
   const name = user?.full_name?.split(' ')[0] ?? 'Admin'

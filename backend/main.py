@@ -142,17 +142,20 @@ def generate_notification_id(db) -> str:
     return f"NT{count:04d}"
 
 def _notify(user_id: str, title: str, message: str, notif_type: str, link: str, db):
-    notif = Notification(
-        notification_id=generate_notification_id(db),
-        user_id=user_id,
-        title=title,
-        message=message,
-        notif_type=notif_type,
-        is_read=False,
-        link=link,
-    )
-    db.add(notif)
-    db.commit()
+    try:
+        notif = Notification(
+            notification_id=generate_notification_id(db),
+            user_id=user_id,
+            title=title,
+            message=message,
+            notif_type=notif_type,
+            is_read=False,
+            link=link,
+        )
+        db.add(notif)
+        db.commit()
+    except Exception:
+        db.rollback()
 
 
 # ── AUTH HELPER ───────────────────────────────────────────────────────────────
@@ -510,6 +513,8 @@ def reset_password(body: ResetPasswordBody, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Password must be at least 6 characters and start with a capital letter")
 
     user = db.query(User).filter(User.user_id == reset.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
     user.password_hash = hash_password(body.password)
     reset.is_used = True
     db.commit()
@@ -560,6 +565,8 @@ def admin_get_users(current_user: User = Depends(require_admin), db: Session = D
 
 @app.delete("/api/admin/users/{user_id}")
 def admin_delete_user(user_id: str, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    if not db.query(User).filter(User.user_id == user_id).first():
+        raise HTTPException(status_code=404, detail="User not found")
     mentor = db.query(Mentor).filter(Mentor.user_id == user_id).first()
     if mentor:
         mentor_sessions = db.query(MentorSession).filter(MentorSession.mentor_id == mentor.mentor_profile_id).all()
@@ -568,6 +575,7 @@ def admin_delete_user(user_id: str, current_user: User = Depends(require_admin),
             db.query(VideoProgress).filter(VideoProgress.session_id == s.session_id).delete()
             db.query(SessionCompletion).filter(SessionCompletion.session_id == s.session_id).delete()
             db.query(Feedback).filter(Feedback.session_id == s.session_id).update({"session_id": None}, synchronize_session=False)
+            db.query(Resource).filter(Resource.session_id == s.session_id).delete()
         db.query(MentorSession).filter(MentorSession.mentor_id == mentor.mentor_profile_id).delete()
         db.query(Program).filter(Program.assigned_mentor == mentor.mentor_profile_id).update({"assigned_mentor": None}, synchronize_session=False)
         db.delete(mentor)
@@ -578,6 +586,7 @@ def admin_delete_user(user_id: str, current_user: User = Depends(require_admin),
     db.query(Feedback).filter(Feedback.mentee_user_id == user_id).update({"mentee_user_id": None}, synchronize_session=False)
     db.query(Enrollment).filter(Enrollment.user_id == user_id).delete()
     db.query(PasswordResetToken).filter(PasswordResetToken.user_id == user_id).delete()
+    db.query(Resource).filter(Resource.uploaded_by == user_id).delete()
 
     user = db.query(User).filter(User.user_id == user_id).first()
     if user:
@@ -637,8 +646,12 @@ def admin_delete_program(program_id: str, current_user: User = Depends(require_a
         db.query(Attendance).filter(Attendance.session_id == s.session_id).delete()
         db.query(VideoProgress).filter(VideoProgress.session_id == s.session_id).delete()
         db.query(SessionCompletion).filter(SessionCompletion.session_id == s.session_id).delete()
+        db.query(Feedback).filter(Feedback.session_id == s.session_id).update({"session_id": None}, synchronize_session=False)
+        db.query(Resource).filter(Resource.session_id == s.session_id).delete()
     db.query(MentorSession).filter(MentorSession.program_id == program_id).delete()
     db.query(Enrollment).filter(Enrollment.program_id == program_id).delete()
+    db.query(SessionCompletion).filter(SessionCompletion.program_id == program_id).delete()
+    db.query(Resource).filter(Resource.program_id == program_id).delete()
     program = db.query(Program).filter(Program.program_id == program_id).first()
     if program:
         db.delete(program)
@@ -739,6 +752,7 @@ def admin_delete_session(session_id: str, current_user: User = Depends(require_a
     db.query(VideoProgress).filter(VideoProgress.session_id == session_id).delete()
     db.query(SessionCompletion).filter(SessionCompletion.session_id == session_id).delete()
     db.query(Feedback).filter(Feedback.session_id == session_id).update({"session_id": None}, synchronize_session=False)
+    db.query(Resource).filter(Resource.session_id == session_id).delete()
     session = db.query(MentorSession).filter(MentorSession.session_id == session_id).first()
     if session:
         db.delete(session)
@@ -770,6 +784,8 @@ def admin_get_attendance(session_id: str, current_user: User = Depends(require_a
 def admin_mark_attendance(session_id: str, body: MarkAttendanceBody,
                           current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
     session = db.query(MentorSession).filter(MentorSession.session_id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
     existing = db.query(Attendance).filter(
         Attendance.session_id == session_id, Attendance.user_id == body.user_id).first()
     if existing:
@@ -780,7 +796,7 @@ def admin_mark_attendance(session_id: str, body: MarkAttendanceBody,
             session_id=session_id, user_id=body.user_id, status=body.status
         ))
     db.commit()
-    if body.status == "present" and session:
+    if body.status == "present":
         _sync_attendance_completion(session_id, body.user_id, session.program_id, db)
     return {"success": True}
 
@@ -932,6 +948,8 @@ def mentor_get_programs(current_user: User = Depends(require_mentor), db: Sessio
 @app.post("/api/mentor/sessions")
 def mentor_create_session(body: CreateSessionBody, current_user: User = Depends(require_mentor), db: Session = Depends(get_db)):
     mentor = db.query(Mentor).filter(Mentor.user_id == current_user.user_id).first()
+    if not mentor:
+        raise HTTPException(status_code=404, detail="Mentor profile not found")
     program = db.query(Program).filter(
         Program.program_id == body.program_id,
         Program.assigned_mentor == mentor.mentor_profile_id
@@ -989,6 +1007,8 @@ def mentor_create_session(body: CreateSessionBody, current_user: User = Depends(
 def mentor_update_session(session_id: str, body: UpdateSessionBody,
                            current_user: User = Depends(require_mentor), db: Session = Depends(get_db)):
     mentor = db.query(Mentor).filter(Mentor.user_id == current_user.user_id).first()
+    if not mentor:
+        raise HTTPException(status_code=404, detail="Mentor profile not found")
     session = db.query(MentorSession).filter(
         MentorSession.session_id == session_id,
         MentorSession.mentor_id == mentor.mentor_profile_id
@@ -1012,13 +1032,21 @@ def mentor_update_session(session_id: str, body: UpdateSessionBody,
 @app.delete("/api/mentor/sessions/{session_id}")
 def mentor_delete_session(session_id: str, current_user: User = Depends(require_mentor), db: Session = Depends(get_db)):
     mentor = db.query(Mentor).filter(Mentor.user_id == current_user.user_id).first()
+    if not mentor:
+        raise HTTPException(status_code=404, detail="Mentor profile not found")
     session = db.query(MentorSession).filter(
         MentorSession.session_id == session_id,
         MentorSession.mentor_id == mentor.mentor_profile_id
     ).first()
-    if session:
-        db.delete(session)
-        db.commit()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    db.query(Attendance).filter(Attendance.session_id == session_id).delete()
+    db.query(VideoProgress).filter(VideoProgress.session_id == session_id).delete()
+    db.query(SessionCompletion).filter(SessionCompletion.session_id == session_id).delete()
+    db.query(Feedback).filter(Feedback.session_id == session_id).update({"session_id": None}, synchronize_session=False)
+    db.query(Resource).filter(Resource.session_id == session_id).delete()
+    db.delete(session)
+    db.commit()
     return {"success": True}
 
 @app.get("/api/mentor/certificates")
@@ -1163,6 +1191,8 @@ def mentor_get_attendance(session_id: str, current_user: User = Depends(require_
 def mentor_mark_attendance(session_id: str, body: MarkAttendanceBody,
                             current_user: User = Depends(require_mentor), db: Session = Depends(get_db)):
     session = db.query(MentorSession).filter(MentorSession.session_id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
     existing = db.query(Attendance).filter(
         Attendance.session_id == session_id, Attendance.user_id == body.user_id).first()
     if existing:
@@ -1173,7 +1203,7 @@ def mentor_mark_attendance(session_id: str, body: MarkAttendanceBody,
             session_id=session_id, user_id=body.user_id, status=body.status
         ))
     db.commit()
-    if body.status == "present" and session:
+    if body.status == "present":
         _sync_attendance_completion(session_id, body.user_id, session.program_id, db)
     return {"success": True}
 

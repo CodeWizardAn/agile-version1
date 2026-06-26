@@ -45,7 +45,12 @@ export default function AdminResources() {
 
   const handleDelete = async id => {
     if (!confirm('Delete this resource?')) return
-    await api.delete(`/api/admin/resources/${id}`); load()
+    try {
+      await api.delete(`/api/admin/resources/${id}`)
+      load()
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to delete resource')
+    }
   }
 
   const f = k => e => setForm(prev => ({ ...prev, [k]: e.target.value }))

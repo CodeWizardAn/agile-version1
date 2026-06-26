@@ -8,19 +8,28 @@ export default function AdminAttendance() {
   const [attendanceData, setAttendance] = useState(null)
   const [marking,      setMarking]      = useState(null)
 
-  useEffect(() => { api.get('/api/admin/sessions').then(r => setSessions(r.data)) }, [])
+  useEffect(() => { api.get('/api/admin/sessions').then(r => setSessions(r.data)).catch(() => {}) }, [])
 
   const loadAttendance = async sid => {
     setSelected(sid)
-    const res = await api.get(`/api/admin/attendance/${sid}`)
-    setAttendance(res.data)
+    try {
+      const res = await api.get(`/api/admin/attendance/${sid}`)
+      setAttendance(res.data)
+    } catch {
+      setAttendance(null)
+    }
   }
 
   const mark = async (userId, status) => {
     setMarking(userId + status)
-    await api.post(`/api/admin/attendance/${selected}/mark`, { user_id: userId, status })
-    await loadAttendance(selected)
-    setMarking(null)
+    try {
+      await api.post(`/api/admin/attendance/${selected}/mark`, { user_id: userId, status })
+      await loadAttendance(selected)
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to mark attendance')
+    } finally {
+      setMarking(null)
+    }
   }
 
   const present = attendanceData?.mentees?.filter(m => m.status === 'present').length ?? 0

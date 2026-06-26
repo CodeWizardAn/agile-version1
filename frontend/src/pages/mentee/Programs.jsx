@@ -128,13 +128,15 @@ export default function MenteePrograms() {
   const [search,      setSearch]      = useState('')
 
   const load = async () => {
-    const [progs, enrollments] = await Promise.all([
-      api.get('/api/mentee/programs/browse').then(r => r.data),
-      api.get('/api/mentee/enrollments').then(r => r.data),
-    ])
-    setPrograms(progs)
-    setEnrolledIds(new Set(enrollments.filter(e => e.status !== 'pending').map(e => e.program_id)))
-    setPendingIds(new Set(enrollments.filter(e => e.status === 'pending').map(e => e.program_id)))
+    try {
+      const [progs, enrollments] = await Promise.all([
+        api.get('/api/mentee/programs/browse').then(r => r.data),
+        api.get('/api/mentee/enrollments').then(r => r.data),
+      ])
+      setPrograms(progs)
+      setEnrolledIds(new Set(enrollments.filter(e => e.status !== 'pending').map(e => e.program_id)))
+      setPendingIds(new Set(enrollments.filter(e => e.status === 'pending').map(e => e.program_id)))
+    } catch { /* silently ignore — page shows empty state */ }
   }
   useEffect(() => { load() }, [])
 

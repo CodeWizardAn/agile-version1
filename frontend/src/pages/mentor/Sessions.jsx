@@ -166,7 +166,12 @@ export default function MentorSessions() {
 
   const handleDelete = async id => {
     if (!confirm('Delete this session?')) return
-    await api.delete(`/api/mentor/sessions/${id}`); load()
+    try {
+      await api.delete(`/api/mentor/sessions/${id}`)
+      load()
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to delete session')
+    }
   }
 
   const filtered = filter === 'all' ? sessions : sessions.filter(s => s.session_type === filter)

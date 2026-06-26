@@ -16,12 +16,18 @@ export default function AdminUsers() {
   const [inviting,    setInviting]    = useState(false)
   const [search,      setSearch]      = useState('')
 
-  useEffect(() => { api.get('/api/admin/users').then(r => setUsers(r.data)) }, [])
+  useEffect(() => {
+    api.get('/api/admin/users').then(r => setUsers(r.data)).catch(() => {})
+  }, [])
 
   const handleDelete = async id => {
     if (!confirm('Delete this user and all their data?')) return
-    await api.delete(`/api/admin/users/${id}`)
-    setUsers(u => u.filter(x => x.user_id !== id))
+    try {
+      await api.delete(`/api/admin/users/${id}`)
+      setUsers(u => u.filter(x => x.user_id !== id))
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to delete user')
+    }
   }
 
   const handleInvite = async e => {

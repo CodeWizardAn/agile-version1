@@ -368,6 +368,8 @@ export default function MenteeSessions() {
     try {
       await api.post(`/api/session/${id}/join`)
       setSessions(s => s.map(x => x.session_id === id ? { ...x, joined: true } : x))
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Could not mark session joined')
     } finally { setJoining(null) }
   }
 

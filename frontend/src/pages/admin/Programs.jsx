@@ -156,7 +156,12 @@ export default function AdminPrograms() {
 
   const handleDelete = async id => {
     if (!confirm('Delete this program and all its sessions/enrollments?')) return
-    await api.delete(`/api/admin/programs/${id}`); load()
+    try {
+      await api.delete(`/api/admin/programs/${id}`)
+      load()
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to delete program')
+    }
   }
 
   const f = k => e => setForm(prev => ({ ...prev, [k]: e.target.value }))

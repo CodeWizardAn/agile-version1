@@ -54,7 +54,12 @@ export default function AdminSessions() {
 
   const handleDelete = async id => {
     if (!confirm('Delete this session?')) return
-    await api.delete(`/api/admin/sessions/${id}`); load()
+    try {
+      await api.delete(`/api/admin/sessions/${id}`)
+      load()
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to delete session')
+    }
   }
 
   const f = k => e => setForm(prev => ({ ...prev, [k]: e.target.value }))

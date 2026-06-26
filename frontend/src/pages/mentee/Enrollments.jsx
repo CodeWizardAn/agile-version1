@@ -15,13 +15,17 @@ const STATUS_STYLE = {
 export default function MenteeEnrollments() {
   const [enrollments, setEnrollments] = useState([])
 
-  const load = () => api.get('/api/mentee/enrollments').then(r => setEnrollments(r.data))
+  const load = () => api.get('/api/mentee/enrollments').then(r => setEnrollments(r.data)).catch(() => {})
   useEffect(() => { load() }, [])
 
   const handleUnenroll = async id => {
     if (!confirm('Unenroll from this program?')) return
-    await api.delete(`/api/mentee/enrollments/${id}`)
-    load()
+    try {
+      await api.delete(`/api/mentee/enrollments/${id}`)
+      load()
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to unenroll')
+    }
   }
 
   return (

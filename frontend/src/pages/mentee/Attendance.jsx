@@ -5,7 +5,7 @@ import api from '../../api/client'
 export default function MenteeAttendance() {
   const [records, setRecords] = useState([])
 
-  useEffect(() => { api.get('/api/mentee/attendance').then(r => setRecords(r.data)) }, [])
+  useEffect(() => { api.get('/api/mentee/attendance').then(r => setRecords(r.data)).catch(() => {}) }, [])
 
   const present = records.filter(r => r.status === 'present').length
   const absent  = records.filter(r => r.status === 'absent').length
