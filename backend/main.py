@@ -268,6 +268,7 @@ class VideoSegmentBody(BaseModel):
     session_id: str
     start: float
     end: float
+    video_duration_seconds: float = 0
 
 
 # ── SESSION REMINDER (APScheduler) ────────────────────────────────────────────
@@ -1599,7 +1600,12 @@ def update_video_progress(payload: VideoSegmentBody, current_user: User = Depend
     progress.watched_segments = json.dumps(existing)
     progress.total_watched = merged_seconds
 
+    # Use session duration if set; otherwise fall back to what the player reported
     duration_seconds = (session.duration_minutes or 0) * 60
+    if duration_seconds == 0 and payload.video_duration_seconds > 0:
+        duration_seconds = payload.video_duration_seconds
+        session.duration_minutes = round(payload.video_duration_seconds / 60) or 1
+
     is_complete = duration_seconds > 0 and merged_seconds >= duration_seconds * 0.95
     db.commit()
 

@@ -12,27 +12,33 @@ const toYTEmbed = url => {
 
 // ─── Video Modal ──────────────────────────────────────────────────────────────
 function VideoModal({ session, initialProgress, onClose, onProgressUpdate }) {
-  const videoRef   = useRef(null)
-  const ytRef      = useRef(null)
-  const segStart   = useRef(null)
-  const pollTimer  = useRef(null)
+  const videoRef      = useRef(null)
+  const ytRef         = useRef(null)
+  const segStart      = useRef(null)
+  const pollTimer     = useRef(null)
+  const videoDurRef   = useRef(0)  // actual duration in seconds from the player
+
+  const [liveProgress, setLiveProgress] = useState(initialProgress ?? { percent: 0, is_complete: false, total_watched: 0 })
 
   const isYT     = isYouTube(session.video_url)
   const embedUrl = isYT ? toYTEmbed(session.video_url) : null
 
   const sendSegment = useCallback(async (start, end) => {
-    if (end == null || start == null || end <= start) return
+    if (end == null || start == null || end <= start + 0.5) return
     try {
       const r = await api.post('/api/video/progress', {
         session_id: session.session_id,
         start: Math.round(start),
-        end:   Math.round(end)
+        end:   Math.round(end),
+        video_duration_seconds: videoDurRef.current
       })
+      setLiveProgress(r.data)
       onProgressUpdate(session.session_id, r.data)
     } catch { /* silent */ }
   }, [session.session_id, onProgressUpdate])
 
   // ── HTML5 video handlers ─────────────────────────────────────────────────
+  const onLoadedMetadata = () => { videoDurRef.current = videoRef.current?.duration ?? 0 }
   const onPlay    = () => { segStart.current = videoRef.current?.currentTime ?? 0 }
   const onPause   = () => {
     const cur = videoRef.current?.currentTime ?? 0
@@ -58,10 +64,14 @@ function VideoModal({ session, initialProgress, onClose, onProgressUpdate }) {
     const setupPlayer = () => {
       ytRef.current = new window.YT.Player('yt-embed', {
         events: {
+          onReady: () => {
+            videoDurRef.current = ytRef.current.getDuration() || 0
+          },
           onStateChange: e => {
             const S = window.YT.PlayerState
             if (e.data === S.PLAYING) {
               segStart.current = ytRef.current.getCurrentTime()
+              if (!videoDurRef.current) videoDurRef.current = ytRef.current.getDuration() || 0
               pollTimer.current = setInterval(() => {
                 const cur = ytRef.current?.getCurrentTime?.() ?? 0
                 if (segStart.current !== null) {
@@ -108,8 +118,8 @@ function VideoModal({ session, initialProgress, onClose, onProgressUpdate }) {
     }
   }, [isYT, sendSegment])
 
-  const pct        = initialProgress?.percent ?? 0
-  const isComplete = initialProgress?.is_complete ?? false
+  const pct        = liveProgress?.percent ?? 0
+  const isComplete = liveProgress?.is_complete ?? false
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.78)', zIndex: 1000,
@@ -150,6 +160,7 @@ function VideoModal({ session, initialProgress, onClose, onProgressUpdate }) {
           ) : session.video_url ? (
             <video ref={videoRef} src={session.video_url} controls
               style={{ width: '100%', height: '100%' }}
+              onLoadedMetadata={onLoadedMetadata}
               onPlay={onPlay} onPause={onPause} onEnded={onEnded} onTimeUpdate={onTimeUpdate} />
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center',
