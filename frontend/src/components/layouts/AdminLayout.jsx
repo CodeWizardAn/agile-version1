@@ -1,5 +1,6 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import NotificationBell from '../../components/NotificationBell'
 
 const NAV = [
   {
@@ -21,17 +22,19 @@ const NAV = [
     section: 'MONITOR',
     items: [
       { to: '/admin/attendance', label: 'Attendance', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
+      { to: '/admin/analytics',  label: 'Analytics',  icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
     ],
   },
 ]
 
 const CRUMBS = {
-  '/admin/dashboard': ['Dashboard',  'Overview'],
-  '/admin/programs':  ['Programs',   'All Programs'],
-  '/admin/sessions':  ['Sessions',   'All Sessions'],
-  '/admin/users':     ['Users',      'All Users'],
-  '/admin/resources': ['Resources',  'All Files'],
-  '/admin/attendance':['Attendance', 'Mark & View'],
+  '/admin/dashboard':  ['Dashboard',  'Overview'],
+  '/admin/programs':   ['Programs',   'All Programs'],
+  '/admin/sessions':   ['Sessions',   'All Sessions'],
+  '/admin/users':      ['Users',      'All Users'],
+  '/admin/resources':  ['Resources',  'All Files'],
+  '/admin/attendance': ['Attendance', 'Mark & View'],
+  '/admin/analytics':  ['Analytics',  'Platform Insights'],
 }
 
 export default function AdminLayout({ children }) {
@@ -133,6 +136,7 @@ export default function AdminLayout({ children }) {
             </>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <NotificationBell accentColor="#059669" />
             <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, color: '#059669' }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#059669', display: 'inline-block' }} />
               Platform Online

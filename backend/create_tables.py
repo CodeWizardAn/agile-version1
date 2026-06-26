@@ -15,6 +15,7 @@ from models.resource import Resource
 from models.email_otp import EmailOTP
 from models.feedback import Feedback
 from models.resource import Resource
+from models.notification import Notification
  
 Base.metadata.create_all(bind=engine)
 

@@ -1,5 +1,6 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import NotificationBell from '../../components/NotificationBell'
 
 const NAV = [
   {
@@ -132,7 +133,10 @@ export default function MenteeLayout({ children }) {
               <span style={{ color: '#94a3b8' }}>{crumb[1]}</span>
             </>}
           </div>
-          <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', background: '#7c3aed', padding: '4px 12px', borderRadius: 50, letterSpacing: '0.04em' }}>Mentee</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <NotificationBell accentColor="#7c3aed" />
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', background: '#7c3aed', padding: '4px 12px', borderRadius: 50, letterSpacing: '0.04em' }}>Mentee</span>
+          </div>
         </header>
 
         <main style={{ flex: 1, overflowY: 'auto', padding: '32px' }}>

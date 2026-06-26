@@ -1,6 +1,8 @@
 import os
 import re
 import json
+import csv
+import io
 import secrets
 import random
 import threading
@@ -8,7 +10,7 @@ from datetime import datetime, timezone, timedelta
 
 from fastapi import FastAPI, Depends, Cookie, HTTPException, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel, field_validator
@@ -32,6 +34,7 @@ from models.password_reset_token import PasswordResetToken
 from models.feedback import Feedback
 from models.resource import Resource
 from models.email_otp import EmailOTP
+from models.notification import Notification
 from email_service import (
     send_email, forgot_password_email, session_created_email,
     session_reminder_email, enrollment_confirmation_email, otp_verification_email,
@@ -133,6 +136,23 @@ def generate_completion_id(db) -> str:
 def generate_feedback_id(db) -> str:
     count = db.query(Feedback).count() + 1
     return f"FB{count:04d}"
+
+def generate_notification_id(db) -> str:
+    count = db.query(Notification).count() + 1
+    return f"NT{count:04d}"
+
+def _notify(user_id: str, title: str, message: str, notif_type: str, link: str, db):
+    notif = Notification(
+        notification_id=generate_notification_id(db),
+        user_id=user_id,
+        title=title,
+        message=message,
+        notif_type=notif_type,
+        is_read=False,
+        link=link,
+    )
+    db.add(notif)
+    db.commit()
 
 
 # ── AUTH HELPER ───────────────────────────────────────────────────────────────
@@ -677,6 +697,7 @@ def admin_create_session(body: CreateSessionBody, current_user: User = Depends(r
             scheduled_at=body.scheduled_at, meeting_link=body.meeting_link, video_url=body.video_url
         )
         threading.Thread(target=send_email, args=(mentee.email, f"New Session Added: {body.title}", html)).start()
+        _notify(mentee.user_id, f"New Session: {body.title}", f"A new session was added to {program_title}.", "new_session", "/mentee/sessions", db)
 
     if body.session_type == "live" and body.scheduled_at and body.meeting_link and mentee_list:
         try:
@@ -947,6 +968,7 @@ def mentor_create_session(body: CreateSessionBody, current_user: User = Depends(
             scheduled_at=body.scheduled_at, meeting_link=body.meeting_link, video_url=body.video_url
         )
         threading.Thread(target=send_email, args=(mentee.email, f"New Session Added: {body.title}", html)).start()
+        _notify(mentee.user_id, f"New Session: {body.title}", f"A new session was added to {program.title}.", "new_session", "/mentee/sessions", db)
 
     if body.session_type == "live" and body.scheduled_at and body.meeting_link and mentee_list:
         try:
@@ -1315,6 +1337,7 @@ def admin_approve_enrollment(enrollment_id: str, current_user: User = Depends(re
     if mentee and program:
         html = enrollment_approved_email(mentee.full_name, program.title)
         threading.Thread(target=send_email, args=(mentee.email, f"Enrollment Approved: {program.title}", html)).start()
+        _notify(mentee.user_id, "Enrollment Approved 🎉", f"Your enrollment in {program.title} has been approved!", "enrollment_approved", "/mentee/enrollments", db)
     return {"success": True}
 
 @app.post("/api/admin/enrollment-requests/{enrollment_id}/reject")
@@ -1331,6 +1354,7 @@ def admin_reject_enrollment(enrollment_id: str, current_user: User = Depends(req
     if mentee and program:
         html = enrollment_rejected_email(mentee.full_name, program.title)
         threading.Thread(target=send_email, args=(mentee.email, f"Enrollment Update: {program.title}", html)).start()
+        _notify(mentee.user_id, "Enrollment Update", f"Your enrollment request for {program.title} was not approved.", "enrollment_rejected", "/programs", db)
     return {"success": True}
 
 @app.post("/api/admin/enrollments/{enrollment_id}/grant-certificate")
@@ -1345,6 +1369,7 @@ def admin_grant_certificate(enrollment_id: str, current_user: User = Depends(req
     if cert_user and cert_prog:
         html = certificate_earned_email(cert_user.full_name, cert_prog.title)
         threading.Thread(target=send_email, args=(cert_user.email, f"🏆 Certificate Ready: {cert_prog.title}", html)).start()
+        _notify(cert_user.user_id, "Certificate Ready 🏆", f"You've earned a certificate for {cert_prog.title}!", "cert_ready", "/mentee/enrollments", db)
     return {"success": True}
 
 @app.get("/api/mentor/enrollment-requests")
@@ -1497,6 +1522,7 @@ def _check_certificate_eligibility(user_id: str, program_id: str, db):
             if cert_user and cert_prog:
                 html = certificate_earned_email(cert_user.full_name, cert_prog.title)
                 threading.Thread(target=send_email, args=(cert_user.email, f"🏆 Certificate Ready: {cert_prog.title}", html)).start()
+                _notify(cert_user.user_id, "Certificate Ready 🏆", f"You've earned a certificate for {cert_prog.title}!", "cert_ready", "/mentee/enrollments", db)
 
 def _sync_attendance_completion(session_id: str, user_id: str, program_id: str, db):
     """When a mentee is marked present, ensure a SessionCompletion exists and check certificate."""
@@ -1729,3 +1755,334 @@ def mentor_session_ratings(session_id: str, current_user: User = Depends(require
             for r in ratings
         ],
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# NOTIFICATIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/notifications")
+def get_notifications(current_user: User = Depends(require_user), db: Session = Depends(get_db)):
+    notifs = (
+        db.query(Notification)
+        .filter(Notification.user_id == current_user.user_id)
+        .order_by(Notification.created_at.desc())
+        .limit(30)
+        .all()
+    )
+    return [
+        {
+            "notification_id": n.notification_id,
+            "title": n.title,
+            "message": n.message,
+            "notif_type": n.notif_type,
+            "is_read": n.is_read,
+            "created_at": str(n.created_at),
+            "link": n.link,
+        }
+        for n in notifs
+    ]
+
+@app.post("/api/notifications/{notification_id}/read")
+def mark_notification_read(notification_id: str, current_user: User = Depends(require_user), db: Session = Depends(get_db)):
+    notif = db.query(Notification).filter(
+        Notification.notification_id == notification_id,
+        Notification.user_id == current_user.user_id
+    ).first()
+    if notif:
+        notif.is_read = True
+        db.commit()
+    return {"success": True}
+
+@app.post("/api/notifications/read-all")
+def mark_all_notifications_read(current_user: User = Depends(require_user), db: Session = Depends(get_db)):
+    db.query(Notification).filter(
+        Notification.user_id == current_user.user_id,
+        Notification.is_read == False
+    ).update({"is_read": True}, synchronize_session=False)
+    db.commit()
+    return {"success": True}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ADMIN ANALYTICS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/admin/analytics")
+def admin_analytics(current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    # Enrollments by month (last 6 months)
+    now = datetime.utcnow()
+    enrollments_by_month = []
+    for i in range(5, -1, -1):
+        month_start = (now.replace(day=1) - timedelta(days=i * 30)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        if i > 0:
+            next_month = (month_start + timedelta(days=32)).replace(day=1)
+        else:
+            next_month = now
+        count = db.query(Enrollment).filter(
+            Enrollment.enrollment_date >= month_start,
+            Enrollment.enrollment_date < next_month
+        ).count()
+        enrollments_by_month.append({
+            "month": month_start.strftime("%b %Y"),
+            "count": count,
+        })
+
+    # Programs analytics
+    programs = db.query(Program).all()
+    programs_data = []
+    for p in programs:
+        enrolled = db.query(Enrollment).filter(
+            Enrollment.program_id == p.program_id,
+            Enrollment.status.in_(["enrolled", "active", "certificate_eligible", "completed"])
+        ).count()
+        completed = db.query(SessionCompletion).filter(
+            SessionCompletion.program_id == p.program_id,
+            SessionCompletion.completed == True
+        ).distinct(SessionCompletion.user_id).count()
+        completion_rate = round(completed / enrolled * 100) if enrolled > 0 else 0
+        programs_data.append({
+            "title": p.title,
+            "enrolled": enrolled,
+            "completed": completed,
+            "completion_rate": completion_rate,
+        })
+
+    # Mentors analytics
+    mentor_rows = db.query(Mentor, User).join(User, Mentor.user_id == User.user_id).all()
+    mentors_data = []
+    for mentor, user in mentor_rows:
+        session_count = db.query(MentorSession).filter(
+            MentorSession.mentor_id == mentor.mentor_profile_id
+        ).count()
+        prog_ids = [p.program_id for p in db.query(Program).filter(
+            Program.assigned_mentor == mentor.mentor_profile_id).all()]
+        unique_mentees = db.query(Enrollment).filter(
+            Enrollment.program_id.in_(prog_ids)
+        ).distinct(Enrollment.user_id).count() if prog_ids else 0
+        session_ids = [s.session_id for s in db.query(MentorSession).filter(
+            MentorSession.mentor_id == mentor.mentor_profile_id).all()]
+        all_fb = db.query(Feedback).filter(Feedback.session_id.in_(session_ids)).all() if session_ids else []
+        avg_rating = round(sum(f.rating for f in all_fb) / len(all_fb), 1) if all_fb else None
+        mentors_data.append({
+            "name": user.full_name,
+            "sessions": session_count,
+            "avg_rating": avg_rating,
+            "mentees": unique_mentees,
+        })
+
+    # Summary
+    total_programs = db.query(Program).count()
+    total_enrollments = db.query(Enrollment).count()
+    total_completions = db.query(Enrollment).filter(
+        Enrollment.status.in_(["certificate_eligible", "completed"])
+    ).count()
+    overall_completion_rate = round(total_completions / total_enrollments * 100) if total_enrollments > 0 else 0
+
+    return {
+        "enrollments_by_month": enrollments_by_month,
+        "programs": programs_data,
+        "mentors": mentors_data,
+        "summary": {
+            "total_programs": total_programs,
+            "total_enrollments": total_enrollments,
+            "total_completions": total_completions,
+            "overall_completion_rate": overall_completion_rate,
+        },
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MENTOR ANALYTICS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/mentor/analytics")
+def mentor_analytics(current_user: User = Depends(require_mentor), db: Session = Depends(get_db)):
+    mentor = db.query(Mentor).filter(Mentor.user_id == current_user.user_id).first()
+    if not mentor:
+        return {"programs": []}
+
+    programs = db.query(Program).filter(Program.assigned_mentor == mentor.mentor_profile_id).all()
+    result = []
+
+    for p in programs:
+        enrollments = db.query(Enrollment).filter(
+            Enrollment.program_id == p.program_id,
+            Enrollment.status.in_(["enrolled", "active", "certificate_eligible", "completed"])
+        ).all()
+        enrolled_count = len(enrollments)
+        completed_count = sum(
+            1 for e in enrollments if e.status in ("certificate_eligible", "completed")
+        )
+        completion_rate = round(completed_count / enrolled_count * 100) if enrolled_count > 0 else 0
+
+        # Average rating across all sessions in this program
+        session_ids = [s.session_id for s in db.query(MentorSession).filter(
+            MentorSession.program_id == p.program_id).all()]
+        all_fb = db.query(Feedback).filter(Feedback.session_id.in_(session_ids)).all() if session_ids else []
+        avg_rating = round(sum(f.rating for f in all_fb) / len(all_fb), 1) if all_fb else None
+        total_sessions = len(session_ids)
+
+        # Trackable sessions (with duration set)
+        trackable_sessions = db.query(MentorSession).filter(
+            MentorSession.program_id == p.program_id,
+            MentorSession.duration_minutes > 0
+        ).all()
+        trackable_count = len(trackable_sessions)
+        trackable_ids = [s.session_id for s in trackable_sessions]
+
+        # Per-mentee details
+        enrolled_user_ids = [e.user_id for e in enrollments]
+        users_map = {u.user_id: u for u in db.query(User).filter(User.user_id.in_(enrolled_user_ids)).all()} if enrolled_user_ids else {}
+
+        mentees_data = []
+        for e in enrollments:
+            u = users_map.get(e.user_id)
+            if not u:
+                continue
+            sessions_completed = db.query(SessionCompletion).filter(
+                SessionCompletion.user_id == e.user_id,
+                SessionCompletion.program_id == p.program_id,
+                SessionCompletion.completed == True
+            ).count()
+            progress_pct = round(sessions_completed / trackable_count * 100) if trackable_count > 0 else 0
+
+            # Attendance rate = present / trackable live sessions with attendance records
+            live_session_ids = [s.session_id for s in db.query(MentorSession).filter(
+                MentorSession.program_id == p.program_id,
+                MentorSession.session_type == "live"
+            ).all()]
+            total_live = len(live_session_ids)
+            present_count = db.query(Attendance).filter(
+                Attendance.user_id == e.user_id,
+                Attendance.session_id.in_(live_session_ids),
+                Attendance.status == "present"
+            ).count() if live_session_ids else 0
+            attendance_rate = round(present_count / total_live * 100) if total_live > 0 else 0
+
+            mentees_data.append({
+                "user_id": e.user_id,
+                "name": u.full_name,
+                "sessions_completed": sessions_completed,
+                "total_trackable_sessions": trackable_count,
+                "progress_pct": progress_pct,
+                "attendance_rate": attendance_rate,
+            })
+
+        result.append({
+            "program_id": p.program_id,
+            "title": p.title,
+            "enrolled": enrolled_count,
+            "completed": completed_count,
+            "completion_rate": completion_rate,
+            "avg_rating": avg_rating,
+            "total_sessions": total_sessions,
+            "mentees": mentees_data,
+        })
+
+    return {"programs": result}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CSV EXPORT ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/admin/export/enrollments")
+def export_enrollments(current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    enrollments = db.query(Enrollment).all()
+    user_ids = list({e.user_id for e in enrollments})
+    prog_ids = list({e.program_id for e in enrollments})
+    users_map = {u.user_id: u for u in db.query(User).filter(User.user_id.in_(user_ids)).all()} if user_ids else {}
+    programs_map = {p.program_id: p for p in db.query(Program).filter(Program.program_id.in_(prog_ids)).all()} if prog_ids else {}
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["enrollment_id", "mentee_name", "email", "program_title", "status", "enrolled_at"])
+    for e in enrollments:
+        u = users_map.get(e.user_id)
+        p = programs_map.get(e.program_id)
+        writer.writerow([
+            e.enrollment_id,
+            u.full_name if u else "",
+            u.email if u else "",
+            p.title if p else "",
+            e.status,
+            str(e.enrollment_date) if e.enrollment_date else "",
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=enrollments.csv"},
+    )
+
+@app.get("/api/admin/export/attendance")
+def export_attendance(current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    records = db.query(Attendance).all()
+    user_ids = list({a.user_id for a in records})
+    session_ids = list({a.session_id for a in records})
+    users_map = {u.user_id: u for u in db.query(User).filter(User.user_id.in_(user_ids)).all()} if user_ids else {}
+    sessions_map = {s.session_id: s for s in db.query(MentorSession).filter(MentorSession.session_id.in_(session_ids)).all()} if session_ids else {}
+    prog_ids = list({s.program_id for s in sessions_map.values()})
+    programs_map = {p.program_id: p for p in db.query(Program).filter(Program.program_id.in_(prog_ids)).all()} if prog_ids else {}
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["mentee_name", "email", "session_title", "program_title", "status", "marked_at"])
+    for a in records:
+        u = users_map.get(a.user_id)
+        s = sessions_map.get(a.session_id)
+        p = programs_map.get(s.program_id) if s else None
+        writer.writerow([
+            u.full_name if u else "",
+            u.email if u else "",
+            s.title if s else "",
+            p.title if p else "",
+            a.status,
+            str(a.marked_at) if a.marked_at else "",
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=attendance.csv"},
+    )
+
+@app.get("/api/admin/export/completions")
+def export_completions(current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    enrollments = db.query(Enrollment).all()
+    user_ids = list({e.user_id for e in enrollments})
+    prog_ids = list({e.program_id for e in enrollments})
+    users_map = {u.user_id: u for u in db.query(User).filter(User.user_id.in_(user_ids)).all()} if user_ids else {}
+    programs_map = {p.program_id: p for p in db.query(Program).filter(Program.program_id.in_(prog_ids)).all()} if prog_ids else {}
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["mentee_name", "program_title", "sessions_completed", "total_sessions", "certificate_eligible"])
+    for e in enrollments:
+        u = users_map.get(e.user_id)
+        p = programs_map.get(e.program_id)
+        sessions_completed = db.query(SessionCompletion).filter(
+            SessionCompletion.user_id == e.user_id,
+            SessionCompletion.program_id == e.program_id,
+            SessionCompletion.completed == True
+        ).count()
+        total_sessions = db.query(MentorSession).filter(
+            MentorSession.program_id == e.program_id
+        ).count()
+        writer.writerow([
+            u.full_name if u else "",
+            p.title if p else "",
+            sessions_completed,
+            total_sessions,
+            "Yes" if e.status in ("certificate_eligible", "completed") else "No",
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=completions.csv"},
+    )
