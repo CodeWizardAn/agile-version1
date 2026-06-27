@@ -201,11 +201,11 @@ export default function MentorDashboard() {
     <MentorLayout>
 
       {/* ── Welcome Banner ── */}
-      <div style={{ background: 'linear-gradient(135deg,#0f172a 0%,#1e293b 60%,#1e1b4b 100%)', borderRadius: 22, padding: '26px 32px', marginBottom: 26, position: 'relative', overflow: 'hidden' }}>
+      <div className="am-banner" style={{ background: 'linear-gradient(135deg,#0f172a 0%,#1e293b 60%,#1e1b4b 100%)', borderRadius: 22, padding: '26px 32px', marginBottom: 26, position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 80% 50%,rgba(79,70,229,0.22),transparent 60%)', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', top: -50, right: 60, width: 180, height: 180, borderRadius: '50%', background: 'rgba(79,70,229,0.07)', pointerEvents: 'none' }} />
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
+        <div className="am-banner-inner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
           <div>
             <p style={{ color: '#a5b4fc', fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', margin: '0 0 6px' }}>{today}</p>
             <h1 style={{ color: '#fff', fontSize: 24, fontWeight: 900, margin: '0 0 6px', letterSpacing: '-0.5px' }}>
@@ -217,7 +217,7 @@ export default function MentorDashboard() {
             </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          <div className="am-hide-mobile" style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
             <Dropdown
               trigger={
                 <button style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 10, border: '1.5px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.08)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(4px)' }}>
@@ -247,7 +247,7 @@ export default function MentorDashboard() {
       </div>
 
       {/* ── Stat Cards ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
+      <div className="am-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
         {STATS.map(s => <StatCard key={s.label} {...s} />)}
       </div>
 
@@ -297,14 +297,14 @@ export default function MentorDashboard() {
             <Link to="/mentor/sessions" style={{ fontSize: 13, fontWeight: 700, color: C, textDecoration: 'none' }}>Create your first session →</Link>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 14, padding: '16px 20px' }}>
+          <div className="am-grid-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 14, padding: '16px 20px' }}>
             {filteredSessions.map(s => <SessionCard key={s.session_id} s={s} />)}
           </div>
         )}
       </div>
 
       {/* ── Quick Actions + Pending Requests ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: requests.length > 0 ? '1fr 1fr' : '1fr', gap: 20 }}>
+      <div className="am-grid-2" style={{ display: 'grid', gridTemplateColumns: requests.length > 0 ? '1fr 1fr' : '1fr', gap: 20 }}>
 
         <div style={{ background: '#fff', borderRadius: 18, boxShadow: '0 1px 4px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', overflow: 'hidden' }}>
           <div style={{ padding: '14px 22px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}>

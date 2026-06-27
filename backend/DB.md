@@ -1,6 +1,6 @@
 # AgileMentor Portal — Database Schema
 **Database:** PostgreSQL  
-**Version:** 1.1  
+**Version:** 1.3  
 **Last Updated:** June 2026
 
 ---
@@ -8,7 +8,7 @@
 ## Setup Instructions
 
 1. Create a PostgreSQL database named `agilementor` (or any name you prefer)
-2. Run the SQL blocks below **in order**
+2. Run the SQL blocks below **in order** (order matters due to foreign keys)
 3. After all tables are created, insert the admin seed user (instructions at the bottom)
 
 ---
@@ -65,7 +65,7 @@ CREATE TABLE "MentorInvite" (
 ```sql
 CREATE TABLE "MentorCertificate" (
     cert_id             VARCHAR(10)     PRIMARY KEY,     -- e.g. CRT0001
-    mentor_profile_id   VARCHAR(10)     REFERENCES "Mentor"(mentor_profile_id),
+    mentor_profile_id   VARCHAR(10)     NOT NULL REFERENCES "Mentor"(mentor_profile_id),
     title               VARCHAR(200),
     file_url            VARCHAR(255),
     file_type           VARCHAR(10),
@@ -98,14 +98,14 @@ CREATE TABLE "Programs" (
 ```sql
 CREATE TABLE "Session" (
     session_id          VARCHAR(10)     PRIMARY KEY,     -- e.g. SES0001
-    program_id          VARCHAR(10)     REFERENCES "Programs"(program_id),
-    mentor_id           VARCHAR(10)     REFERENCES "Mentor"(mentor_profile_id),
+    program_id          VARCHAR(10)     NOT NULL REFERENCES "Programs"(program_id),
+    mentor_id           VARCHAR(10)     NOT NULL REFERENCES "Mentor"(mentor_profile_id),
     title               VARCHAR(200)    NOT NULL,
     description         TEXT,
     session_type        VARCHAR(10)     NOT NULL CHECK (session_type IN ('live', 'recorded')),
-    scheduled_at        TIMESTAMP,
-    meeting_link        VARCHAR(255),
-    video_url           VARCHAR(255),
+    scheduled_at        TIMESTAMP,                       -- live sessions only
+    meeting_link        VARCHAR(255),                    -- live sessions only
+    video_url           VARCHAR(255),                    -- recorded sessions only
     duration_minutes    INTEGER,
     status              VARCHAR(15)     DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'completed', 'cancelled')),
     created_at          TIMESTAMP       DEFAULT CURRENT_TIMESTAMP
@@ -131,19 +131,18 @@ CREATE TABLE "Enrollment" (
 ---
 
 ### 8. Attendence
-> Includes auto-attendance fields for live session tracking. Note: table name retains original spelling.
+> Table name retains original spelling. Includes auto-attendance fields for live session tracking.
 
 ```sql
 CREATE TABLE "Attendence" (
     attendance_id           VARCHAR(10)     PRIMARY KEY,    -- e.g. ATT0001
-    session_id              VARCHAR(10)     REFERENCES "Session"(session_id),
-    user_id                 VARCHAR(10)     REFERENCES "User"(user_id),
+    session_id              VARCHAR(10)     NOT NULL REFERENCES "Session"(session_id),
+    user_id                 VARCHAR(10)     NOT NULL REFERENCES "User"(user_id),
     status                  VARCHAR(10)     NOT NULL DEFAULT 'absent' CHECK (status IN ('present', 'absent')),
     marked_at               TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
     join_intervals          TEXT            DEFAULT '[]',   -- JSON: [{"join": "ISO", "leave": "ISO"}, ...]
     total_minutes_present   INTEGER         DEFAULT 0,
-    is_auto_marked          VARCHAR(5)      DEFAULT 'false',-- "true" if system marked, "false" if manual
-    UNIQUE(session_id, user_id)
+    is_auto_marked          VARCHAR(5)      DEFAULT 'false' -- "true" if system marked, "false" if manual
 );
 ```
 
@@ -182,50 +181,56 @@ CREATE TABLE "SessionCompletion" (
 
 ---
 
-### 11. Feedback
+### 11. feedback
+> Stores mentee ratings and comments for sessions. Table name is lowercase.
+
 ```sql
-CREATE TABLE "Feedback" (
+CREATE TABLE "feedback" (
     feedback_id     VARCHAR(10)     PRIMARY KEY,            -- e.g. FBK0001
-    session_id      VARCHAR(10)     REFERENCES "Session"(session_id),
-    user_id         VARCHAR(10)     REFERENCES "User"(user_id),
-    mentor_id       VARCHAR(10)     REFERENCES "Mentor"(mentor_profile_id),
-    comment         TEXT,
-    submitted_at    TIMESTAMP       DEFAULT CURRENT_TIMESTAMP
+    session_id      VARCHAR(10),
+    mentee_user_id  VARCHAR(10),
+    rating          INTEGER,                                -- 1–5
+    comments        VARCHAR(500)
 );
 ```
 
 ---
 
-### 12. Announcement
+### 12. announcements
+> Platform-wide announcements created by admins. Table name is lowercase plural.
+
 ```sql
-CREATE TABLE "Announcement" (
+CREATE TABLE "announcements" (
     announcement_id VARCHAR(10)     PRIMARY KEY,            -- e.g. ANN0001
-    admin_id        VARCHAR(10)     REFERENCES "User"(user_id),
-    program_id      VARCHAR(10)     REFERENCES "Programs"(program_id),
-    title           VARCHAR(200)    NOT NULL,
-    body            TEXT,
-    published_at    TIMESTAMP       DEFAULT CURRENT_TIMESTAMP
-);
-```
-
----
-
-### 13. Notification
-```sql
-CREATE TABLE "Notification" (
-    noti_id         VARCHAR(10)     PRIMARY KEY,            -- e.g. NTF0001
-    user_id         VARCHAR(10)     REFERENCES "User"(user_id),
     title           VARCHAR(200),
-    message         TEXT,
-    is_read         BOOLEAN         DEFAULT FALSE,
+    message         VARCHAR(1000),
+    created_by      VARCHAR(10),
     created_at      TIMESTAMP       DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
 ---
 
+### 13. notifications
+> Per-user in-app notifications. Table name is lowercase plural.
+
+```sql
+CREATE TABLE "notifications" (
+    notification_id VARCHAR(10)     PRIMARY KEY,            -- e.g. NTF0001
+    user_id         VARCHAR(10),
+    title           VARCHAR(200),
+    message         VARCHAR(500),
+    notif_type      VARCHAR(50),                            -- e.g. enrollment, session, certificate
+    is_read         BOOLEAN         DEFAULT FALSE,
+    created_at      TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
+    link            VARCHAR(200)                            -- optional deep-link URL
+);
+```
+
+---
+
 ### 14. Certificate
-> Issued to mentees who complete all recorded sessions in a program (status = `certificate_eligible`).
+> **Note:** This table is not currently used by the application. Certificate eligibility is tracked via `Enrollment.status = 'certificate_eligible'`. This table is included for future use if certificate records need to be stored separately.
 
 ```sql
 CREATE TABLE "Certificate" (
@@ -235,10 +240,14 @@ CREATE TABLE "Certificate" (
     certificate_url VARCHAR(255),
     issued_at       TIMESTAMP       DEFAULT CURRENT_TIMESTAMP
 );
-
-
 ```
--- ── 15. PASSWORDRESETTOKEN ───────────────────────────────────────────────────
+
+---
+
+### 15. PasswordResetToken
+> Stores single-use tokens for the forgot-password flow.
+
+```sql
 CREATE TABLE "PasswordResetToken" (
     token       VARCHAR(64)     PRIMARY KEY,
     user_id     VARCHAR(10)     NOT NULL REFERENCES "User"(user_id) ON DELETE CASCADE,
@@ -246,21 +255,44 @@ CREATE TABLE "PasswordResetToken" (
     created_at  TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
     expires_at  TIMESTAMP       NOT NULL
 );
+```
 
+---
+
+### 16. Resource
+> Uploaded files (PDF, video, image, etc.) scoped globally or to a specific program/session.
+
+```sql
 CREATE TABLE "Resource" (
-    resource_id     VARCHAR(10)     PRIMARY KEY,         -- e.g. RES0001
-    program_id      VARCHAR(10)     REFERENCES "Programs"(program_id),  -- NULL = global
-    uploaded_by     VARCHAR(10)     NOT NULL REFERENCES "User"(user_id),
-    uploaded_by_role VARCHAR(10)    NOT NULL CHECK (uploaded_by_role IN ('admin', 'mentor')),
+    resource_id     VARCHAR(10)     PRIMARY KEY,            -- e.g. RES0001
     title           VARCHAR(200)    NOT NULL,
     description     TEXT,
-    resource_type   VARCHAR(10)     NOT NULL CHECK (resource_type IN ('file', 'link', 'text')),
-    file_url        VARCHAR(255),    -- used when resource_type = 'file'
-    file_type       VARCHAR(10),     -- pdf, docx, jpg, mp4, etc. used when resource_type = 'file'
-    link_url         VARCHAR(255),    -- used when resource_type = 'link'
-    text_content    TEXT,            -- used when resource_type = 'text'
-    created_at      TIMESTAMP       DEFAULT CURRENT_TIMESTAMP
+    file_url        VARCHAR(500)    NOT NULL,
+    file_type       VARCHAR(20),                            -- pdf, doc, ppt, image, video, excel, txt, file
+    scope           VARCHAR(10)     DEFAULT 'global',       -- global | program
+    program_id      VARCHAR(10)     REFERENCES "Programs"(program_id),
+    session_id      VARCHAR(10)     REFERENCES "Session"(session_id),
+    uploaded_by     VARCHAR(10)     NOT NULL REFERENCES "User"(user_id),
+    uploaded_at     TIMESTAMP       DEFAULT CURRENT_TIMESTAMP
 );
+```
+
+---
+
+### 17. EmailOTP
+> Stores one-time passwords used for email verification at signup.
+
+```sql
+CREATE TABLE "EmailOTP" (
+    otp_id      VARCHAR(10)     PRIMARY KEY,                -- e.g. OTP0001
+    user_id     VARCHAR(10)     NOT NULL,
+    otp_code    VARCHAR(6)      NOT NULL,
+    expires_at  TIMESTAMP       NOT NULL,
+    is_used     BOOLEAN         DEFAULT FALSE,
+    created_at  TIMESTAMP       DEFAULT CURRENT_TIMESTAMP
+);
+```
+
 ---
 
 ## Admin Seed User
@@ -287,4 +319,5 @@ print(pwd_context.hash("YourPasswordHere"))
 |---------|--------|
 | 1.0 | Initial schema |
 | 1.1 | Added `join_intervals`, `total_minutes_present`, `is_auto_marked` to `Attendence`; added `VideoProgress` and `SessionCompletion` tables; updated `Enrollment.status` to support `certificate_eligible`; fixed `MentorInvite` FK constraints to `ON DELETE SET NULL` |
-| 1.2 | Added `PasswordResetToken` table for forgot password flow |
+| 1.2 | Added `PasswordResetToken` table for forgot password flow; added `Resource` table |
+| 1.3 | Fixed `feedback` table name (lowercase) and columns (`mentee_user_id`, `rating`, `comments`); fixed `announcements` table name (lowercase plural) and columns (`message`, `created_by`, `created_at`); fixed `notifications` table name (lowercase plural), PK renamed to `notification_id`, added `notif_type` and `link` columns; updated `Resource` columns to match actual model (`scope`, `session_id`, `uploaded_at`; removed `resource_type`, `link_url`, `text_content`, `uploaded_by_role`); added `EmailOTP` table; fixed SQL code block formatting throughout; removed incorrect FK REFERENCES from `feedback`, `announcements`, `notifications`, `EmailOTP` (models do not declare ForeignKey for those columns); added `NOT NULL` to `MentorCertificate.mentor_profile_id` |

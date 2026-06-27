@@ -133,11 +133,11 @@ export default function AdminDashboard() {
     <AdminLayout>
 
       {/* ── Welcome Banner ── */}
-      <div style={{ background: 'linear-gradient(135deg,#0f172a 0%,#1e293b 60%,#064e3b 100%)', borderRadius: 22, padding: '26px 32px', marginBottom: 26, position: 'relative', overflow: 'hidden' }}>
+      <div className="am-banner" style={{ background: 'linear-gradient(135deg,#0f172a 0%,#1e293b 60%,#064e3b 100%)', borderRadius: 22, padding: '26px 32px', marginBottom: 26, position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 80% 50%,rgba(5,150,105,0.2),transparent 60%)', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', top: -40, right: -40, width: 200, height: 200, borderRadius: '50%', background: 'rgba(5,150,105,0.06)', pointerEvents: 'none' }} />
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
+        <div className="am-banner-inner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
           <div>
             <p style={{ color: '#6ee7b7', fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', margin: '0 0 6px' }}>{today}</p>
             <h1 style={{ color: '#fff', fontSize: 24, fontWeight: 900, margin: '0 0 6px', letterSpacing: '-0.5px' }}>
@@ -148,7 +148,7 @@ export default function AdminDashboard() {
             </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+          <div className="am-hide-mobile" style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
             {/* Platform status */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 16px', borderRadius: 50, background: 'rgba(5,150,105,0.15)', border: '1px solid rgba(5,150,105,0.35)' }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981', display: 'inline-block', boxShadow: '0 0 0 3px rgba(16,185,129,0.3)' }} />
@@ -179,7 +179,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* ── Stat Grid ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 24 }}>
+      <div className="am-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 24 }}>
         {STAT_DEFS.map(d => <StatCard key={d.key} def={d} value={stats?.[d.key] ?? null} />)}
       </div>
 
@@ -257,7 +257,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* ── Quick Actions + Platform Modules ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+      <div className="am-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
 
         {/* Quick Actions — gradient cards */}
         <div style={{ background: '#fff', borderRadius: 18, boxShadow: '0 1px 4px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', overflow: 'hidden' }}>

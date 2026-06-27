@@ -16,6 +16,7 @@ const S = {
   right: { flex: 1, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px 40px' },
 }
 
+
 export default function Login() {
   const { role: paramRole } = useParams()
   const initRole = ROLES.find(r => r.toLowerCase() === paramRole) || 'Mentee'
@@ -53,9 +54,9 @@ export default function Login() {
 
   if (unverified) {
     return (
-      <div style={S.page}>
+      <div className="am-auth-page" style={S.page}>
         <LeftPanel />
-        <div style={S.right}>
+        <div className="am-auth-right" style={S.right}>
           <div style={{ maxWidth: 420, width: '100%', textAlign: 'center' }}>
             <div style={{ fontSize: 56, marginBottom: 20 }}>📬</div>
             <h2 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', marginBottom: 8 }}>Verify your email</h2>
@@ -76,10 +77,10 @@ export default function Login() {
   }
 
   return (
-    <div style={S.page}>
+    <div className="am-auth-page" style={S.page}>
       <LeftPanel />
 
-      <div style={S.right}>
+      <div className="am-auth-right" style={S.right}>
         <div style={{ width: '100%', maxWidth: 460 }}>
 
           {/* Role tabs */}
@@ -192,7 +193,7 @@ export default function Login() {
 
 function LeftPanel() {
   return (
-    <div style={S.left}>
+    <div className="am-auth-left" style={S.left}>
       {/* bg glow */}
       <div style={{ position: 'absolute', top: -80, right: -80, width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle,rgba(59,130,246,0.18),transparent 70%)', pointerEvents: 'none' }} />
       <div style={{ position: 'absolute', bottom: -60, left: '20%', width: 200, height: 200, borderRadius: '50%', background: 'radial-gradient(circle,rgba(99,102,241,0.12),transparent 70%)', pointerEvents: 'none' }} />

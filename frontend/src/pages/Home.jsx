@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 
 /* ── Data ───────────────────────────────────────────────── */
@@ -53,16 +54,25 @@ function StarRating({ rating, reviews }) {
 
 /* ── Page ───────────────────────────────────────────────── */
 export default function Home() {
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  // Close menu on resize to desktop
+  useEffect(() => {
+    const handler = () => { if (window.innerWidth >= 768) setMenuOpen(false) }
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
+
+  const NAV_LINKS = ['Home', 'Programs', 'Mentors', 'Live Sessions', 'About']
+
   return (
     <div style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", background: '#fff' }}>
 
       {/* ════ NAVBAR ════ */}
-      <nav style={{
-        position: 'sticky', top: 0, zIndex: 100,
-        background: '#fff', borderBottom: '1px solid #e2e8f0',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-      }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 32px', height: 68, display: 'flex', alignItems: 'center', gap: 40 }}>
+      <nav style={{ position: 'sticky', top: 0, zIndex: 100, background: '#fff', borderBottom: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+        <div className="am-nav-inner" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 32px', height: 68, display: 'flex', alignItems: 'center', gap: 40 }}>
+
+          {/* Logo */}
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', flexShrink: 0 }}>
             <div style={{ width: 38, height: 38, borderRadius: 10, background: 'linear-gradient(135deg,#2563eb,#4f46e5)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(37,99,235,0.35)' }}>
               <svg viewBox="0 0 32 28" width="22" height="22" fill="none">
@@ -75,8 +85,9 @@ export default function Home() {
             </span>
           </Link>
 
-          <div style={{ display: 'flex', gap: 32, flex: 1 }}>
-            {['Home', 'Programs', 'Mentors', 'Live Sessions', 'About'].map(l => (
+          {/* Desktop nav links */}
+          <div className="am-nav-links" style={{ display: 'flex', gap: 32, flex: 1 }}>
+            {NAV_LINKS.map(l => (
               <a key={l} href={`#${l.toLowerCase().replace(' ', '-')}`}
                 style={{ fontSize: 14, fontWeight: 500, color: '#475569', textDecoration: 'none' }}>
                 {l}
@@ -84,38 +95,55 @@ export default function Home() {
             ))}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginLeft: 'auto' }}>
-            <Link to="/login/mentee" style={{ fontSize: 14, fontWeight: 600, color: '#374151', textDecoration: 'none' }}>
-              Login
-            </Link>
-            <Link to="/signup/mentee" style={{
-              fontSize: 14, fontWeight: 700, color: '#fff', textDecoration: 'none',
-              background: 'linear-gradient(135deg,#2563eb,#4338ca)',
-              padding: '9px 22px', borderRadius: 50,
-              boxShadow: '0 4px 14px rgba(37,99,235,0.4)',
-            }}>
+          {/* Desktop actions */}
+          <div className="am-nav-actions" style={{ display: 'flex', alignItems: 'center', gap: 16, marginLeft: 'auto' }}>
+            <Link to="/login/mentee" style={{ fontSize: 14, fontWeight: 600, color: '#374151', textDecoration: 'none' }}>Login</Link>
+            <Link to="/signup/mentee" style={{ fontSize: 14, fontWeight: 700, color: '#fff', textDecoration: 'none', background: 'linear-gradient(135deg,#2563eb,#4338ca)', padding: '9px 22px', borderRadius: 50, boxShadow: '0 4px 14px rgba(37,99,235,0.4)' }}>
               Get Started
             </Link>
           </div>
+
+          {/* Hamburger — mobile only */}
+          <button className="am-nav-hamburger" onClick={() => setMenuOpen(o => !o)}
+            style={{ marginLeft: 'auto' }}>
+            <svg width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              {menuOpen
+                ? <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                : <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"/>}
+            </svg>
+          </button>
+        </div>
+
+        {/* Mobile dropdown menu */}
+        <div className={`am-mobile-menu${menuOpen ? ' open' : ''}`}>
+          {NAV_LINKS.map(l => (
+            <a key={l} href={`#${l.toLowerCase().replace(' ', '-')}`} onClick={() => setMenuOpen(false)}
+              style={{ fontSize: 15, fontWeight: 500, color: '#374151', textDecoration: 'none', padding: '10px 12px', borderRadius: 10, display: 'block' }}>
+              {l}
+            </a>
+          ))}
+          <div className="am-mob-divider" />
+          <Link to="/login/mentee" onClick={() => setMenuOpen(false)}
+            style={{ fontSize: 15, fontWeight: 600, color: '#374151', textDecoration: 'none', padding: '10px 12px', display: 'block' }}>
+            Login
+          </Link>
+          <Link to="/signup/mentee" onClick={() => setMenuOpen(false)} className="am-mob-cta"
+            style={{ fontSize: 15, fontWeight: 700, color: '#fff', textDecoration: 'none', padding: '12px', display: 'block', background: 'linear-gradient(135deg,#2563eb,#4338ca)', borderRadius: 10, textAlign: 'center', marginTop: 4 }}>
+            Get Started Free
+          </Link>
         </div>
       </nav>
 
       {/* ════ HERO ════ */}
       <section id="home" style={{ background: 'linear-gradient(160deg, #0c1a3d 0%, #0f2356 60%, #0c1a3d 100%)', position: 'relative', overflow: 'hidden' }}>
-        {/* glow */}
         <div style={{ position: 'absolute', top: -100, right: -100, width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(59,130,246,0.15), transparent 70%)', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', bottom: -80, left: '30%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(99,102,241,0.1), transparent 70%)', pointerEvents: 'none' }} />
 
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '110px 32px 100px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'center', position: 'relative', zIndex: 1 }}>
+        <div className="am-hero-grid" style={{ maxWidth: 1200, margin: '0 auto', padding: '110px 32px 100px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'center', position: 'relative', zIndex: 1 }}>
 
           {/* Left */}
           <div>
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.3)',
-              color: '#93c5fd', borderRadius: 50, padding: '7px 16px',
-              fontSize: 12, fontWeight: 600, marginBottom: 28,
-            }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.3)', color: '#93c5fd', borderRadius: 50, padding: '7px 16px', fontSize: 12, fontWeight: 600, marginBottom: 28 }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#60a5fa', display: 'inline-block' }} />
               India's #1 Agile Mentorship Platform
             </div>
@@ -130,22 +158,11 @@ export default function Home() {
               Get matched with industry mentors, attend live Agile sessions, and build the skills that actually get you hired.
             </p>
 
-            <div style={{ display: 'flex', gap: 12 }}>
-              <a href="#programs" style={{
-                display: 'inline-flex', alignItems: 'center', gap: 8,
-                background: 'linear-gradient(135deg,#2563eb,#4338ca)',
-                color: '#fff', fontSize: 14, fontWeight: 700,
-                padding: '13px 28px', borderRadius: 10, textDecoration: 'none',
-                boxShadow: '0 6px 20px rgba(37,99,235,0.45)',
-              }}>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <a href="#programs" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg,#2563eb,#4338ca)', color: '#fff', fontSize: 14, fontWeight: 700, padding: '13px 28px', borderRadius: 10, textDecoration: 'none', boxShadow: '0 6px 20px rgba(37,99,235,0.45)' }}>
                 Explore Programs →
               </a>
-              <Link to="/signup/mentor" style={{
-                display: 'inline-flex', alignItems: 'center',
-                background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.2)',
-                color: '#fff', fontSize: 14, fontWeight: 600,
-                padding: '13px 28px', borderRadius: 10, textDecoration: 'none',
-              }}>
+              <Link to="/signup/mentor" style={{ display: 'inline-flex', alignItems: 'center', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: 14, fontWeight: 600, padding: '13px 28px', borderRadius: 10, textDecoration: 'none' }}>
                 Become a Mentor
               </Link>
             </div>
@@ -153,7 +170,6 @@ export default function Home() {
 
           {/* Right */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {/* Stat cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
               {[['500+','Expert Mentors'],['10K+','Learners Placed'],['4.9 ★','Avg Rating']].map(([v,l]) => (
                 <div key={l} style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '18px 12px', textAlign: 'center' }}>
@@ -163,7 +179,6 @@ export default function Home() {
               ))}
             </div>
 
-            {/* How it works */}
             <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '22px 24px' }}>
               <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', color: '#64748b', textTransform: 'uppercase', marginBottom: 18 }}>HOW IT WORKS</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -182,7 +197,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Trusted */}
             <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
               <svg width="20" height="20" fill="none" stroke="#60a5fa" strokeWidth="2" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
@@ -196,9 +210,9 @@ export default function Home() {
       </section>
 
       {/* ════ PROGRAMS ════ */}
-      <section id="programs" style={{ background: '#fff', padding: '96px 0' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 32px' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 52 }}>
+      <section id="programs" className="am-section-pad" style={{ background: '#fff', padding: '96px 0' }}>
+        <div className="am-section-inner" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 32px' }}>
+          <div className="am-section-header" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 52 }}>
             <div>
               <h2 style={{ fontSize: 36, fontWeight: 800, color: '#0f172a', margin: '0 0 10px', letterSpacing: '-0.5px' }}>
                 Explore Top <span style={{ color: '#2563eb' }}>Programs</span>
@@ -210,40 +224,23 @@ export default function Home() {
             </Link>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 28 }}>
+          <div className="am-programs-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 28 }}>
             {PROGRAMS.map(p => (
-              <div key={p.id} style={{
-                background: '#fff', borderRadius: 20, overflow: 'hidden',
-                boxShadow: '0 4px 24px rgba(0,0,0,0.08)', border: '1px solid #f1f5f9',
-                display: 'flex', flexDirection: 'column',
-                transition: 'transform 0.2s, box-shadow 0.2s',
-              }}
+              <div key={p.id} style={{ background: '#fff', borderRadius: 20, overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,0.08)', border: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', transition: 'transform 0.2s, box-shadow 0.2s' }}
                 onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-6px)'; e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,0,0,0.14)' }}
                 onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 24px rgba(0,0,0,0.08)' }}>
 
-                {/* Card image/header */}
-                <div style={{
-                  height: 200, position: 'relative',
-                  background: `linear-gradient(135deg, ${p.headerColors[0]} 0%, ${p.headerColors[1]} 100%)`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  {/* decorative circles */}
+                <div style={{ height: 200, position: 'relative', background: `linear-gradient(135deg, ${p.headerColors[0]} 0%, ${p.headerColors[1]} 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <div style={{ position: 'absolute', top: -30, right: -30, width: 120, height: 120, borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }} />
                   <div style={{ position: 'absolute', bottom: -20, left: -20, width: 90, height: 90, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
                   <span style={{ fontSize: 64, filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.3))', position: 'relative', zIndex: 1 }}>{p.emoji}</span>
-                  <span style={{
-                    position: 'absolute', top: 16, left: 16,
-                    background: p.tagColor, color: '#fff',
-                    fontSize: 11, fontWeight: 800, padding: '5px 12px', borderRadius: 6, letterSpacing: '0.04em',
-                  }}>{p.tag}</span>
+                  <span style={{ position: 'absolute', top: 16, left: 16, background: p.tagColor, color: '#fff', fontSize: 11, fontWeight: 800, padding: '5px 12px', borderRadius: 6, letterSpacing: '0.04em' }}>{p.tag}</span>
                 </div>
 
-                {/* Body */}
                 <div style={{ padding: '24px 24px 28px', display: 'flex', flexDirection: 'column', flex: 1 }}>
                   <h3 style={{ fontSize: 18, fontWeight: 700, color: '#0f172a', margin: '0 0 10px', lineHeight: 1.3 }}>{p.title}</h3>
                   <p style={{ fontSize: 14, color: '#64748b', lineHeight: 1.65, margin: '0 0 16px', flex: 1 }}>{p.desc}</p>
 
-                  {/* Certificate */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
                     <svg width="16" height="16" fill="none" stroke="#16a34a" strokeWidth="2" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
@@ -251,27 +248,19 @@ export default function Home() {
                     <span style={{ fontSize: 13, fontWeight: 600, color: '#16a34a' }}>Certificate on completion</span>
                   </div>
 
-                  {/* Topics */}
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 20 }}>
                     {p.topics.map(t => (
                       <span key={t} style={{ fontSize: 12, fontWeight: 500, background: '#f1f5f9', color: '#475569', padding: '4px 12px', borderRadius: 50 }}>{t}</span>
                     ))}
                   </div>
 
-                  {/* Stats */}
                   <div style={{ display: 'flex', gap: 20, fontSize: 12, color: '#64748b', borderTop: '1px solid #f1f5f9', paddingTop: 16, marginBottom: 20 }}>
                     <span>📅 {p.weeks} Weeks</span>
                     <span>👥 {p.enrolled} enrolled</span>
                     <span>⭐ {p.rating}</span>
                   </div>
 
-                  <Link to="/signup/mentee" style={{
-                    display: 'block', textAlign: 'center', textDecoration: 'none',
-                    background: 'linear-gradient(135deg,#2563eb,#4338ca)',
-                    color: '#fff', fontSize: 14, fontWeight: 700,
-                    padding: '13px', borderRadius: 12,
-                    boxShadow: '0 4px 14px rgba(37,99,235,0.3)',
-                  }}>
+                  <Link to="/signup/mentee" style={{ display: 'block', textAlign: 'center', textDecoration: 'none', background: 'linear-gradient(135deg,#2563eb,#4338ca)', color: '#fff', fontSize: 14, fontWeight: 700, padding: '13px', borderRadius: 12, boxShadow: '0 4px 14px rgba(37,99,235,0.3)' }}>
                     Enroll Now
                   </Link>
                 </div>
@@ -282,9 +271,9 @@ export default function Home() {
       </section>
 
       {/* ════ MENTORS ════ */}
-      <section id="mentors" style={{ background: '#f8fafc', padding: '96px 0' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 32px' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 52 }}>
+      <section id="mentors" className="am-section-pad" style={{ background: '#f8fafc', padding: '96px 0' }}>
+        <div className="am-section-inner" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 32px' }}>
+          <div className="am-section-header" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 52 }}>
             <div>
               <h2 style={{ fontSize: 36, fontWeight: 800, color: '#0f172a', margin: '0 0 10px', letterSpacing: '-0.5px' }}>
                 Meet Our <span style={{ color: '#2563eb' }}>Mentors</span>
@@ -296,20 +285,13 @@ export default function Home() {
             </Link>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 22 }}>
+          <div className="am-mentors-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 22 }}>
             {MENTORS.map(m => (
-              <div key={m.name} style={{
-                background: '#fff', borderRadius: 20, overflow: 'hidden',
-                boxShadow: '0 2px 16px rgba(0,0,0,0.07)', border: '1px solid #f1f5f9',
-                borderTop: `4px solid ${m.border}`,
-                display: 'flex', flexDirection: 'column',
-                transition: 'transform 0.2s, box-shadow 0.2s',
-              }}
+              <div key={m.name} style={{ background: '#fff', borderRadius: 20, overflow: 'hidden', boxShadow: '0 2px 16px rgba(0,0,0,0.07)', border: '1px solid #f1f5f9', borderTop: `4px solid ${m.border}`, display: 'flex', flexDirection: 'column', transition: 'transform 0.2s, box-shadow 0.2s' }}
                 onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-5px)'; e.currentTarget.style.boxShadow = '0 12px 36px rgba(0,0,0,0.12)' }}
                 onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 16px rgba(0,0,0,0.07)' }}>
 
                 <div style={{ padding: '28px 22px 24px', display: 'flex', flexDirection: 'column', flex: 1, alignItems: 'center', textAlign: 'center' }}>
-                  {/* Avatar */}
                   <div style={{ position: 'relative', marginBottom: 16 }}>
                     <div style={{ width: 80, height: 80, borderRadius: '50%', background: m.grad, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 26, fontWeight: 800, boxShadow: '0 6px 20px rgba(0,0,0,0.2)' }}>
                       {m.initials}
@@ -333,7 +315,6 @@ export default function Home() {
 
                   <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6, margin: '0 0 18px', flex: 1 }}>{m.bio}</p>
 
-                  {/* Stats */}
                   <div style={{ display: 'flex', gap: 0, width: '100%', borderTop: '1px solid #f1f5f9', borderBottom: '1px solid #f1f5f9', padding: '14px 0', marginBottom: 14 }}>
                     {[['Mentees', m.mentees],['Sessions', m.sessions]].map(([label, val], i) => (
                       <div key={label} style={{ flex: 1, textAlign: 'center', borderLeft: i ? '1px solid #f1f5f9' : 'none' }}>
@@ -343,20 +324,13 @@ export default function Home() {
                     ))}
                   </div>
 
-                  {/* Tags */}
                   <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginBottom: 18 }}>
                     {m.tags.map(t => (
                       <span key={t} style={{ fontSize: 12, fontWeight: 500, background: '#eff6ff', color: '#2563eb', padding: '4px 10px', borderRadius: 50 }}>{t}</span>
                     ))}
                   </div>
 
-                  <Link to="/signup/mentee" style={{
-                    display: 'block', width: '100%', textAlign: 'center', textDecoration: 'none',
-                    border: '1.5px solid #bfdbfe', color: '#2563eb', background: 'transparent',
-                    fontSize: 13, fontWeight: 600, padding: '10px', borderRadius: 12,
-                    transition: 'background 0.15s, color 0.15s',
-                    boxSizing: 'border-box',
-                  }}
+                  <Link to="/signup/mentee" style={{ display: 'block', width: '100%', textAlign: 'center', textDecoration: 'none', border: '1.5px solid #bfdbfe', color: '#2563eb', background: 'transparent', fontSize: 13, fontWeight: 600, padding: '10px', borderRadius: 12, transition: 'background 0.15s, color 0.15s', boxSizing: 'border-box' }}
                     onMouseEnter={e => { e.target.style.background = '#2563eb'; e.target.style.color = '#fff' }}
                     onMouseLeave={e => { e.target.style.background = 'transparent'; e.target.style.color = '#2563eb' }}>
                     Book Session
@@ -369,29 +343,17 @@ export default function Home() {
       </section>
 
       {/* ════ CTA ════ */}
-      <section style={{ padding: '60px 32px' }}>
-        <div style={{
-          maxWidth: 1000, margin: '0 auto', borderRadius: 24,
-          background: 'linear-gradient(135deg, #0f1f48 0%, #1e3a7a 100%)',
-          padding: '52px 60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 40,
-          boxShadow: '0 24px 60px rgba(15,31,72,0.35)',
-        }}>
+      <section className="am-cta-section" style={{ padding: '60px 32px' }}>
+        <div className="am-cta-inner" style={{ maxWidth: 1000, margin: '0 auto', borderRadius: 24, background: 'linear-gradient(135deg, #0f1f48 0%, #1e3a7a 100%)', padding: '52px 60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 40, boxShadow: '0 24px 60px rgba(15,31,72,0.35)' }}>
           <div>
             <h2 style={{ fontSize: 26, fontWeight: 800, color: '#fff', margin: '0 0 8px' }}>Ready to accelerate your Agile career?</h2>
             <p style={{ fontSize: 15, color: '#93c5fd', margin: 0 }}>India's leading platform connecting Agile professionals with the next generation of practitioners.</p>
           </div>
-          <div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
-            <Link to="/signup/mentee" style={{
-              background: '#2563eb', color: '#fff', fontSize: 14, fontWeight: 700,
-              padding: '13px 26px', borderRadius: 10, textDecoration: 'none',
-              boxShadow: '0 4px 14px rgba(37,99,235,0.4)',
-            }}>
+          <div className="am-cta-buttons" style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
+            <Link to="/signup/mentee" style={{ background: '#2563eb', color: '#fff', fontSize: 14, fontWeight: 700, padding: '13px 26px', borderRadius: 10, textDecoration: 'none', boxShadow: '0 4px 14px rgba(37,99,235,0.4)' }}>
               Start Learning Free
             </Link>
-            <Link to="/signup/mentor" style={{
-              border: '1.5px solid rgba(255,255,255,0.3)', color: '#fff', fontSize: 14, fontWeight: 600,
-              padding: '13px 26px', borderRadius: 10, textDecoration: 'none', background: 'rgba(255,255,255,0.05)',
-            }}>
+            <Link to="/signup/mentor" style={{ border: '1.5px solid rgba(255,255,255,0.3)', color: '#fff', fontSize: 14, fontWeight: 600, padding: '13px 26px', borderRadius: 10, textDecoration: 'none', background: 'rgba(255,255,255,0.05)' }}>
               Apply as Mentor
             </Link>
           </div>
@@ -400,8 +362,8 @@ export default function Home() {
 
       {/* ════ FOOTER ════ */}
       <footer style={{ background: '#060f26', paddingTop: 64, paddingBottom: 32 }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 32px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr', gap: 48, marginBottom: 52 }}>
+        <div className="am-footer-inner" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 32px' }}>
+          <div className="am-footer-grid" style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr', gap: 48, marginBottom: 52 }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,#2563eb,#4f46e5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -431,7 +393,7 @@ export default function Home() {
               </div>
             ))}
           </div>
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="am-footer-bottom" style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <p style={{ fontSize: 13, color: '#475569', margin: 0 }}>© 2026 AgileMentor. All rights reserved.</p>
             <p style={{ fontSize: 13, color: '#475569', margin: 0 }}>Made with ❤️ in India</p>
           </div>

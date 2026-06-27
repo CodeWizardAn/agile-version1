@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import NotificationBell from '../../components/NotificationBell'
@@ -29,21 +30,6 @@ const CRUMBS = {
   '/mentor/resources':    ['Resources',      'My Resources'],
 }
 
-const S = {
-  sidebar: {
-    width: 220,
-    minWidth: 220,
-    background: '#0f172a',
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100vh',
-    position: 'sticky',
-    top: 0,
-    boxShadow: '2px 0 20px rgba(0,0,0,0.25)',
-    fontFamily: "'Inter', system-ui, sans-serif",
-  },
-}
-
 export default function MentorLayout({ children }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
@@ -52,24 +38,66 @@ export default function MentorLayout({ children }) {
   const handleLogout = async () => { await logout(); navigate('/') }
   const initial = (user?.full_name?.[0] ?? 'M').toUpperCase()
 
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  useEffect(() => {
+    const handler = () => {
+      const mobile = window.innerWidth < 768
+      setIsMobile(mobile)
+      if (!mobile) setSidebarOpen(false)
+    }
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
+
+  const closeNav = () => { if (isMobile) setSidebarOpen(false) }
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc', fontFamily: "'Inter', system-ui, sans-serif" }}>
 
+      {/* Mobile overlay */}
+      {isMobile && sidebarOpen && (
+        <div onClick={() => setSidebarOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 49 }} />
+      )}
+
       {/* ── Sidebar ── */}
-      <aside style={S.sidebar}>
+      <aside style={{
+        width: 220, minWidth: 220, background: '#0f172a', display: 'flex', flexDirection: 'column',
+        boxShadow: '2px 0 20px rgba(0,0,0,0.25)',
+        ...(isMobile ? {
+          position: 'fixed', top: 0, left: 0, height: '100vh', zIndex: 50,
+          width: 260, minWidth: 'unset',
+          transform: sidebarOpen ? 'translateX(0)' : 'translateX(-260px)',
+          transition: 'transform 0.25s ease',
+        } : {
+          height: '100vh', position: 'sticky', top: 0,
+        }),
+      }}>
 
         {/* Logo */}
         <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(135deg,#2563eb,#4f46e5)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 4px 12px rgba(37,99,235,0.4)' }}>
-              <svg viewBox="0 0 32 28" width="18" height="18" fill="none">
-                <path d="M2 18 Q6 4 12 14 Q16 20 20 8 Q24 0 30 12" stroke="white" strokeWidth="3" strokeLinecap="round"/>
-              </svg>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(135deg,#2563eb,#4f46e5)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 4px 12px rgba(37,99,235,0.4)' }}>
+                <svg viewBox="0 0 32 28" width="18" height="18" fill="none">
+                  <path d="M2 18 Q6 4 12 14 Q16 20 20 8 Q24 0 30 12" stroke="white" strokeWidth="3" strokeLinecap="round"/>
+                </svg>
+              </div>
+              <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: '-0.3px' }}>
+                <span style={{ color: '#fff' }}>Agile</span>
+                <span style={{ color: '#60a5fa' }}>Mentor</span>
+              </span>
             </div>
-            <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: '-0.3px' }}>
-              <span style={{ color: '#fff' }}>Agile</span>
-              <span style={{ color: '#60a5fa' }}>Mentor</span>
-            </span>
+            {isMobile && (
+              <button onClick={() => setSidebarOpen(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: 4, display: 'flex', alignItems: 'center' }}>
+                <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            )}
           </div>
         </div>
 
@@ -96,7 +124,7 @@ export default function MentorLayout({ children }) {
                 {section.section}
               </p>
               {section.items.map(item => (
-                <NavLink key={item.to} to={item.to}
+                <NavLink key={item.to} to={item.to} onClick={closeNav}
                   style={({ isActive }) => ({
                     display: 'flex', alignItems: 'center', gap: 10,
                     padding: '9px 10px', borderRadius: 10, marginBottom: 2,
@@ -135,13 +163,23 @@ export default function MentorLayout({ children }) {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
 
         {/* Top bar */}
-        <header style={{ background: '#fff', borderBottom: '1px solid #e2e8f0', padding: '0 32px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-            <span style={{ fontWeight: 700, color: '#1e293b' }}>{crumb[0]}</span>
-            {crumb[1] && <>
-              <span style={{ color: '#cbd5e1' }}>/</span>
-              <span style={{ color: '#94a3b8' }}>{crumb[1]}</span>
-            </>}
+        <header style={{ background: '#fff', borderBottom: '1px solid #e2e8f0', padding: isMobile ? '0 16px' : '0 32px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {isMobile && (
+              <button onClick={() => setSidebarOpen(true)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center', color: '#475569' }}>
+                <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+              </button>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+              <span style={{ fontWeight: 700, color: '#1e293b' }}>{crumb[0]}</span>
+              {crumb[1] && !isMobile && <>
+                <span style={{ color: '#cbd5e1' }}>/</span>
+                <span style={{ color: '#94a3b8' }}>{crumb[1]}</span>
+              </>}
+            </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <NotificationBell accentColor="#4f46e5" />
@@ -150,7 +188,7 @@ export default function MentorLayout({ children }) {
         </header>
 
         {/* Page content */}
-        <main style={{ flex: 1, overflowY: 'auto', padding: '32px' }}>
+        <main style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px' : '32px' }}>
           <div style={{ maxWidth: 1100, margin: '0 auto' }}>
             {children}
           </div>

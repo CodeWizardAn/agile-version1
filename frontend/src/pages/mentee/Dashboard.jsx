@@ -212,11 +212,11 @@ export default function MenteeDashboard() {
     <MenteeLayout>
 
       {/* ── Welcome Banner ── */}
-      <div style={{ background: 'linear-gradient(135deg,#0f172a 0%,#1e293b 60%,#2e1065 100%)', borderRadius: 22, padding: '26px 32px', marginBottom: 26, position: 'relative', overflow: 'hidden' }}>
+      <div className="am-banner" style={{ background: 'linear-gradient(135deg,#0f172a 0%,#1e293b 60%,#2e1065 100%)', borderRadius: 22, padding: '26px 32px', marginBottom: 26, position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 80% 50%,rgba(124,58,237,0.22),transparent 60%)', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', top: -50, right: 60, width: 180, height: 180, borderRadius: '50%', background: 'rgba(124,58,237,0.07)', pointerEvents: 'none' }} />
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
+        <div className="am-banner-inner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
           <div>
             <p style={{ color: '#c4b5fd', fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', margin: '0 0 6px' }}>{today}</p>
             <h1 style={{ color: '#fff', fontSize: 24, fontWeight: 900, margin: '0 0 6px', letterSpacing: '-0.5px' }}>
@@ -228,7 +228,7 @@ export default function MenteeDashboard() {
             </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          <div className="am-hide-mobile" style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
             {/* My Learning dropdown */}
             <Dropdown
               trigger={
@@ -256,7 +256,7 @@ export default function MenteeDashboard() {
       </div>
 
       {/* ── Stat Cards ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
+      <div className="am-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
         {STATS.map(s => <StatCard key={s.label} {...s} />)}
       </div>
 
@@ -307,7 +307,7 @@ export default function MenteeDashboard() {
             <Link to="/programs" style={{ fontSize: 13, fontWeight: 700, color: C, textDecoration: 'none' }}>Enroll in a program →</Link>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 14, padding: '16px 20px' }}>
+          <div className="am-grid-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 14, padding: '16px 20px' }}>
             {filteredSessions.map(s => <SessionCard key={s.session_id} s={s} />)}
           </div>
         )}
@@ -319,7 +319,7 @@ export default function MenteeDashboard() {
           <div style={{ width: 8, height: 8, borderRadius: '50%', background: C }} />
           <h2 style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', margin: 0 }}>Quick Links</h2>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)' }}>
+        <div className="am-grid-ql" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)' }}>
           {[
             { label: 'Browse Programs',  sub: 'Discover new programs',       emoji: '🔍', href: '/programs' },
             { label: 'My Enrollments',   sub: 'Track enrolled programs',     emoji: '📋', href: '/mentee/enrollments' },

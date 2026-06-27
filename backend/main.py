@@ -578,6 +578,7 @@ def admin_delete_user(user_id: str, current_user: User = Depends(require_admin),
             db.query(Resource).filter(Resource.session_id == s.session_id).delete()
         db.query(MentorSession).filter(MentorSession.mentor_id == mentor.mentor_profile_id).delete()
         db.query(Program).filter(Program.assigned_mentor == mentor.mentor_profile_id).update({"assigned_mentor": None}, synchronize_session=False)
+        db.query(MentorCertificate).filter(MentorCertificate.mentor_profile_id == mentor.mentor_profile_id).delete()
         db.delete(mentor)
 
     db.query(Attendance).filter(Attendance.user_id == user_id).delete()
@@ -586,6 +587,8 @@ def admin_delete_user(user_id: str, current_user: User = Depends(require_admin),
     db.query(Feedback).filter(Feedback.mentee_user_id == user_id).update({"mentee_user_id": None}, synchronize_session=False)
     db.query(Enrollment).filter(Enrollment.user_id == user_id).delete()
     db.query(PasswordResetToken).filter(PasswordResetToken.user_id == user_id).delete()
+    db.query(EmailOTP).filter(EmailOTP.user_id == user_id).delete()
+    db.query(Notification).filter(Notification.user_id == user_id).delete()
     db.query(Resource).filter(Resource.uploaded_by == user_id).delete()
 
     user = db.query(User).filter(User.user_id == user_id).first()
