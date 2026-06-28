@@ -87,67 +87,72 @@ def validate_password(password: str) -> bool:
 
 
 # ── ID GENERATORS ─────────────────────────────────────────────────────────────
-# All IDs are sequential (YY = last 2 digits of year, N = zero-padded count)
+# All IDs use MAX+1 instead of COUNT+1 to avoid collisions when records are deleted
+
+def _next_count(max_id: str, prefix_len: int) -> int:
+    return (int(max_id[prefix_len:]) + 1) if max_id else 1
 
 def generate_user_id(db) -> str:
     year = str(datetime.now().year)[2:]
-    count = db.query(User).count() + 1
+    max_id = db.query(func.max(User.user_id)).scalar()
+    count = (int(max_id[2:]) + 1) if max_id else 1
     return f"{year}{count:03d}"
 
 def generate_mentor_id(db) -> str:
-    count = db.query(Mentor).count() + 1
-    return f"MTR{count:04d}"
+    max_id = db.query(func.max(Mentor.mentor_profile_id)).scalar()
+    return f"MTR{_next_count(max_id, 3):04d}"
 
 def generate_program_id(db) -> str:
-    count = db.query(Program).count() + 1
-    return f"PRG{count:04d}"
+    max_id = db.query(func.max(Program.program_id)).scalar()
+    return f"PRG{_next_count(max_id, 3):04d}"
 
 def generate_invite_id(db) -> str:
-    count = db.query(MentorInvite).count() + 1
-    return f"INV{count:04d}"
+    max_id = db.query(func.max(MentorInvite.invite_id)).scalar()
+    return f"INV{_next_count(max_id, 3):04d}"
 
 def generate_enrollment_id(db, program_title: str = "") -> str:
     year = str(datetime.now().year)[2:]
     raw = "".join(c for c in program_title if c.isalpha())
     code = raw[:2].upper() if len(raw) >= 2 else (raw.upper() + "X")[:2]
-    count = db.query(Enrollment).filter(Enrollment.program_id != None).count() + 1
+    max_id = db.query(func.max(Enrollment.enrollment_id)).scalar()
+    count = (int(max_id[-4:]) + 1) if max_id else 1
     return f"{year}{code}{count:04d}"
 
 def generate_session_id(db) -> str:
-    count = db.query(MentorSession).count() + 1
-    return f"SES{count:04d}"
+    max_id = db.query(func.max(MentorSession.session_id)).scalar()
+    return f"SES{_next_count(max_id, 3):04d}"
 
 def generate_attendance_id(db) -> str:
-    count = db.query(Attendance).count() + 1
-    return f"ATT{count:04d}"
+    max_id = db.query(func.max(Attendance.attendance_id)).scalar()
+    return f"ATT{_next_count(max_id, 3):04d}"
 
 def generate_cert_id(db) -> str:
-    count = db.query(MentorCertificate).count() + 1
-    return f"CRT{count:04d}"
+    max_id = db.query(func.max(MentorCertificate.cert_id)).scalar()
+    return f"CRT{_next_count(max_id, 3):04d}"
 
 def generate_resource_id(db) -> str:
-    count = db.query(Resource).count() + 1
-    return f"RES{count:04d}"
+    max_id = db.query(func.max(Resource.resource_id)).scalar()
+    return f"RES{_next_count(max_id, 3):04d}"
 
 def generate_otp_id(db) -> str:
-    count = db.query(EmailOTP).count() + 1
-    return f"OTP{count:04d}"
+    max_id = db.query(func.max(EmailOTP.otp_id)).scalar()
+    return f"OTP{_next_count(max_id, 3):04d}"
 
 def generate_progress_id(db) -> str:
-    count = db.query(VideoProgress).count() + 1
-    return f"VP{count:04d}"
+    max_id = db.query(func.max(VideoProgress.progress_id)).scalar()
+    return f"VP{_next_count(max_id, 2):04d}"
 
 def generate_completion_id(db) -> str:
-    count = db.query(SessionCompletion).count() + 1
-    return f"SC{count:04d}"
+    max_id = db.query(func.max(SessionCompletion.completion_id)).scalar()
+    return f"SC{_next_count(max_id, 2):04d}"
 
 def generate_feedback_id(db) -> str:
-    count = db.query(Feedback).count() + 1
-    return f"FB{count:04d}"
+    max_id = db.query(func.max(Feedback.feedback_id)).scalar()
+    return f"FB{_next_count(max_id, 2):04d}"
 
 def generate_notification_id(db) -> str:
-    count = db.query(Notification).count() + 1
-    return f"NT{count:04d}"
+    max_id = db.query(func.max(Notification.notification_id)).scalar()
+    return f"NT{_next_count(max_id, 2):04d}"
 
 def _notify(user_id: str, title: str, message: str, notif_type: str, link: str, db):
     try:
