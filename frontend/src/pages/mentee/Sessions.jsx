@@ -337,11 +337,13 @@ function VideoModal({ session, initialProgress, onClose, onProgressUpdate }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function MenteeSessions() {
-  const [sessions,   setSessions]   = useState([])
-  const [joining,    setJoining]    = useState(null)
-  const [progress,   setProgress]   = useState({})   // session_id → {percent, is_complete}
-  const [watchModal, setWatchModal] = useState(null)  // session object
-  const [myRatings,  setMyRatings]  = useState({})   // session_id → {rating, comments}
+  const [sessions,     setSessions]     = useState([])
+  const [joining,      setJoining]      = useState(null)
+  const [progress,     setProgress]     = useState({})   // session_id → {percent, is_complete}
+  const [watchModal,   setWatchModal]   = useState(null)  // session object
+  const [myRatings,    setMyRatings]    = useState({})   // session_id → {rating, comments}
+  const [activeJoins,  setActiveJoins]  = useState(new Set()) // sessions joined in this tab
+  const activeJoinsRef = useRef(new Set()) // ref copy for beforeunload (state not readable there)
 
   useEffect(() => {
     api.get('/api/mentee/sessions/ratings').then(r => setMyRatings(r.data)).catch(() => {})
@@ -368,10 +370,39 @@ export default function MenteeSessions() {
     try {
       await api.post(`/api/session/${id}/join`)
       setSessions(s => s.map(x => x.session_id === id ? { ...x, joined: true } : x))
+      activeJoinsRef.current.add(id)
+      setActiveJoins(prev => new Set([...prev, id]))
     } catch (err) {
       alert(err.response?.data?.detail || 'Could not mark session joined')
     } finally { setJoining(null) }
   }
+
+  const handleLeave = async id => {
+    try {
+      await api.post(`/api/session/${id}/leave`)
+    } catch (err) {
+      console.error('Leave session failed:', err)
+    } finally {
+      activeJoinsRef.current.delete(id)
+      setActiveJoins(prev => { const n = new Set(prev); n.delete(id); return n })
+    }
+  }
+
+  // Fire leave for any open joins when the tab is closed / navigated away
+  useEffect(() => {
+    const onUnload = () => {
+      const base = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+      activeJoinsRef.current.forEach(sessionId => {
+        fetch(`${base}/api/session/${sessionId}/leave`, {
+          method: 'POST',
+          credentials: 'include',
+          keepalive: true,
+        }).catch(() => {})
+      })
+    }
+    window.addEventListener('beforeunload', onUnload)
+    return () => window.removeEventListener('beforeunload', onUnload)
+  }, [])
 
   const handleProgressUpdate = useCallback((sessionId, data) => {
     setProgress(prev => ({ ...prev, [sessionId]: data }))
@@ -452,21 +483,28 @@ export default function MenteeSessions() {
             {s.session_type === 'live' && s.meeting_link && (
               <div style={{ display: 'flex', gap: 10 }}>
                 <a href={s.meeting_link} target="_blank" rel="noreferrer"
+                  onClick={() => { if (!activeJoins.has(s.session_id)) handleJoin(s.session_id) }}
                   style={{ flex: 1, textDecoration: 'none', textAlign: 'center', padding: '9px 0',
                            borderRadius: 9, fontSize: 12, fontWeight: 700, color: '#fff',
                            background: 'linear-gradient(135deg,#7c3aed,#a855f7)',
                            boxShadow: '0 3px 10px rgba(124,58,237,0.35)' }}>
                   Join Meeting →
                 </a>
-                {!s.joined && (
+                {activeJoins.has(s.session_id) ? (
+                  <button onClick={() => handleLeave(s.session_id)}
+                    style={{ padding: '9px 16px', borderRadius: 9, border: '1.5px solid #fca5a5',
+                             fontSize: 12, fontWeight: 600, color: '#dc2626', background: '#fff',
+                             cursor: 'pointer' }}>
+                    Leave
+                  </button>
+                ) : !s.joined ? (
                   <button onClick={() => handleJoin(s.session_id)} disabled={joining === s.session_id}
                     style={{ padding: '9px 16px', borderRadius: 9, border: '1.5px solid #a78bfa',
                              fontSize: 12, fontWeight: 600, color: '#7c3aed', background: '#fff',
                              cursor: joining === s.session_id ? 'not-allowed' : 'pointer' }}>
                     {joining === s.session_id ? '…' : 'Mark Joined'}
                   </button>
-                )}
-                {s.joined && (
+                ) : (
                   <span style={{ padding: '9px 16px', fontSize: 12, fontWeight: 700, color: '#15803d' }}>
                     ✓ Joined
                   </span>
