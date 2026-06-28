@@ -438,13 +438,13 @@ def login(role: str, request: Request, body: LoginBody, db: Session = Depends(ge
             "profile_photo": user.profile_photo,
         }
     })
-    response.set_cookie(key="access_token", value=token, httponly=True, samesite="lax", secure=PRODUCTION)
+    response.set_cookie(key="access_token", value=token, httponly=True, samesite="none" if PRODUCTION else "lax", secure=PRODUCTION)
     return response
 
 @app.post("/api/auth/logout")
 def logout():
     response = JSONResponse({"success": True})
-    response.delete_cookie("access_token")
+    response.delete_cookie("access_token", samesite="none" if PRODUCTION else "lax", secure=PRODUCTION)
     return response
 
 @app.post("/api/auth/verify-email")
