@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import MentorLayout from '../../components/layouts/MentorLayout'
 import api from '../../api/client'
 
@@ -64,7 +64,7 @@ function RatingsPanel({ sessionId }) {
   )
 }
 
-const emptyForm = { title: '', description: '', session_type: 'live', scheduled_at: '', meeting_link: '', video_url: '', duration_minutes: '' }
+const emptyForm = { title: '', description: '', session_type: 'live', scheduled_at: '', meeting_link: '', video_url: '', duration_minutes: '', cover_image: '' }
 
 const inp = { width: '100%', padding: '11px 14px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: 13, color: '#1e293b', outline: 'none', background: '#fafafa', boxSizing: 'border-box', fontFamily: 'inherit' }
 const label = { display: 'block', fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 6, letterSpacing: '0.02em' }
@@ -76,8 +76,10 @@ function SessionCard({ s, isLive, isPast, onEdit, onDelete }) {
   return (
     <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #f1f5f9', boxShadow: '0 1px 6px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
       <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
-        <div style={{ width: 44, height: 44, borderRadius: 12, background: isLive ? '#eff6ff' : '#f5f3ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
-          {isLive ? '🎥' : '📹'}
+        <div style={{ width: 44, height: 44, borderRadius: 12, background: isLive ? '#eff6ff' : '#f5f3ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0, overflow: 'hidden' }}>
+          {s.cover_image
+            ? <img src={s.cover_image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : (isLive ? '🎥' : '📹')}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
@@ -129,15 +131,18 @@ function SessionCard({ s, isLive, isPast, onEdit, onDelete }) {
 }
 
 export default function MentorSessions() {
-  const [sessions, setSessions] = useState([])
-  const [programs, setPrograms] = useState([])
-  const [showForm, setShowForm] = useState(false)
-  const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState(emptyForm)
+  const [sessions,     setSessions]     = useState([])
+  const [programs,     setPrograms]     = useState([])
+  const [showForm,     setShowForm]     = useState(false)
+  const [editing,      setEditing]      = useState(null)
+  const [form,         setForm]         = useState(emptyForm)
   const [selectedProgram, setSelectedProgram] = useState('')
-  const [filter, setFilter] = useState('all')
-  const [error, setError] = useState('')
-  const [saving, setSaving] = useState(false)
+  const [filter,       setFilter]       = useState('all')
+  const [error,        setError]        = useState('')
+  const [saving,       setSaving]       = useState(false)
+  const [coverFile,    setCoverFile]    = useState(null)
+  const [coverPreview, setCoverPreview] = useState(null)
+  const coverInputRef = useRef(null)
 
   const load = () => Promise.all([
     api.get('/api/mentor/sessions').then(r => setSessions(r.data)),
@@ -145,21 +150,38 @@ export default function MentorSessions() {
   ])
   useEffect(() => { load() }, [])
 
-  const openCreate = () => { setEditing(null); setForm(emptyForm); setSelectedProgram(''); setError(''); setShowForm(true) }
+  const openCreate = () => { setEditing(null); setForm(emptyForm); setSelectedProgram(''); setCoverFile(null); setCoverPreview(null); setError(''); setShowForm(true) }
   const openEdit   = s  => {
     setEditing(s.session_id)
     setForm({ title: s.title, description: s.description || '', session_type: s.session_type,
                scheduled_at: s.scheduled_at?.slice(0, 16) || '', meeting_link: s.meeting_link || '',
-               video_url: s.video_url || '', duration_minutes: s.duration_minutes || '' })
+               video_url: s.video_url || '', duration_minutes: s.duration_minutes || '',
+               cover_image: s.cover_image || '' })
+    setCoverFile(null); setCoverPreview(null)
     setError(''); setShowForm(true)
+  }
+
+  const handleCoverChange = e => {
+    const file = e.target.files[0]
+    if (!file) return
+    setCoverFile(file)
+    setCoverPreview(URL.createObjectURL(file))
   }
 
   const handleSubmit = async e => {
     e.preventDefault(); setError(''); setSaving(true)
     try {
-      if (editing) await api.put(`/api/mentor/sessions/${editing}`, form)
-      else         await api.post('/api/mentor/sessions', { ...form, program_id: selectedProgram })
-      setShowForm(false); setEditing(null); setForm(emptyForm); setSelectedProgram(''); load()
+      let coverUrl = form.cover_image
+      if (coverFile) {
+        const fd = new FormData()
+        fd.append('file', coverFile)
+        const r = await api.post('/api/upload-cover', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+        coverUrl = r.data.url
+      }
+      const payload = { ...form, cover_image: coverUrl }
+      if (editing) await api.put(`/api/mentor/sessions/${editing}`, payload)
+      else         await api.post('/api/mentor/sessions', { ...payload, program_id: selectedProgram })
+      setShowForm(false); setEditing(null); setForm(emptyForm); setSelectedProgram(''); setCoverFile(null); setCoverPreview(null); load()
     } catch (err) { setError(err.response?.data?.detail || 'Failed to save session') }
     finally { setSaving(false) }
   }
@@ -261,11 +283,34 @@ export default function MentorSessions() {
                 </div>
               )}
 
-              <div style={{ marginBottom: 24 }}>
+              <div style={{ marginBottom: 18 }}>
                 <p style={label}>Description</p>
                 <textarea style={{ ...inp, minHeight: 90, resize: 'vertical' }} placeholder="Session agenda or notes..."
                   value={form.description} onChange={e => setForm(f => ({...f, description: e.target.value}))}
                   onFocus={e => e.target.style.borderColor = '#4f46e5'} onBlur={e => e.target.style.borderColor = '#e2e8f0'} />
+              </div>
+
+              <div style={{ marginBottom: 24 }}>
+                <p style={label}>Cover Image</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {(coverPreview || form.cover_image) && (
+                    <img src={coverPreview || form.cover_image} alt="cover"
+                      style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 10, border: '1.5px solid #e2e8f0', flexShrink: 0 }} />
+                  )}
+                  <div>
+                    <input ref={coverInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleCoverChange} />
+                    <button type="button" onClick={() => coverInputRef.current?.click()}
+                      style={{ padding: '9px 18px', borderRadius: 10, border: '1.5px solid #e2e8f0', background: '#f8fafc', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#475569' }}>
+                      {coverPreview || form.cover_image ? '🔄 Change Image' : '📷 Upload Cover Image'}
+                    </button>
+                    {(coverPreview || form.cover_image) && (
+                      <button type="button" onClick={() => { setCoverFile(null); setCoverPreview(null); setForm(f => ({ ...f, cover_image: '' })); if (coverInputRef.current) coverInputRef.current.value = '' }}
+                        style={{ marginLeft: 8, padding: '9px 14px', borderRadius: 10, border: '1.5px solid #fecaca', background: '#fef2f2', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#dc2626' }}>
+                        ✕ Remove
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div style={{ display: 'flex', gap: 12 }}>
@@ -273,7 +318,7 @@ export default function MentorSessions() {
                   style={{ padding: '12px 28px', borderRadius: 10, border: 'none', cursor: saving ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 700, color: '#fff', background: saving ? '#a5b4fc' : 'linear-gradient(135deg,#4f46e5,#6366f1)', boxShadow: saving ? 'none' : '0 4px 14px rgba(99,102,241,0.4)' }}>
                   {saving ? 'Saving…' : editing ? 'Update Session' : 'Create Session →'}
                 </button>
-                <button type="button" onClick={() => { setShowForm(false); setEditing(null) }}
+                <button type="button" onClick={() => { setShowForm(false); setEditing(null); setCoverFile(null); setCoverPreview(null) }}
                   style={{ padding: '12px 28px', borderRadius: 10, border: '1.5px solid #e2e8f0', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#64748b', background: '#fff' }}>
                   Cancel
                 </button>

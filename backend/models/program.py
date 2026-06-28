@@ -16,4 +16,5 @@ class Program(Base):
     created_by = Column(String(10), ForeignKey("User.user_id"))
     assigned_mentor = Column(String(10), ForeignKey("Mentor.mentor_profile_id"))
     status = Column(String(15), default="draft")
+    cover_image = Column(String(500))
     created_at = Column(DateTime, server_default=func.now())

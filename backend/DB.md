@@ -88,6 +88,7 @@ CREATE TABLE "Programs" (
     created_by      VARCHAR(10)     REFERENCES "User"(user_id),
     assigned_mentor VARCHAR(10)     REFERENCES "Mentor"(mentor_profile_id),
     status          VARCHAR(15)     DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'completed')),
+    cover_image     VARCHAR(500),                           -- Cloudinary URL
     created_at      TIMESTAMP       DEFAULT CURRENT_TIMESTAMP
 );
 ```
@@ -107,6 +108,7 @@ CREATE TABLE "Session" (
     meeting_link        VARCHAR(255),                    -- live sessions only
     video_url           VARCHAR(255),                    -- recorded sessions only
     duration_minutes    INTEGER,
+    cover_image         VARCHAR(500),                       -- Cloudinary URL
     status              VARCHAR(15)     DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'completed', 'cancelled')),
     created_at          TIMESTAMP       DEFAULT CURRENT_TIMESTAMP
 );

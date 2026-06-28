@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import AdminLayout from '../../components/layouts/AdminLayout'
 import api from '../../api/client'
 
-const empty = { title: '', description: '', category: '', duration_weeks: '', start_date: '', end_date: '', assigned_mentor: '' }
+const empty = { title: '', description: '', category: '', duration_weeks: '', start_date: '', end_date: '', assigned_mentor: '', cover_image: '' }
 
 const inp = { width: '100%', padding: '11px 14px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: 13, color: '#1e293b', outline: 'none', background: '#fafafa', boxSizing: 'border-box', fontFamily: 'inherit' }
 const lbl = { display: 'block', fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 6, letterSpacing: '0.02em' }
@@ -40,8 +40,10 @@ function ProgramCard({ p, idx, onEdit, onDelete }) {
         onMouseEnter={e => !open && (e.currentTarget.style.background = '#fafafa')}
         onMouseLeave={e => !open && (e.currentTarget.style.background = 'transparent')}>
 
-        <div style={{ width: 46, height: 46, borderRadius: 14, background: grad, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
-          {emoji}
+        <div style={{ width: 46, height: 46, borderRadius: 14, background: p.cover_image ? 'transparent' : grad, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', overflow: 'hidden' }}>
+          {p.cover_image
+            ? <img src={p.cover_image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : emoji}
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -119,15 +121,18 @@ function ProgramCard({ p, idx, onEdit, onDelete }) {
 }
 
 export default function AdminPrograms() {
-  const [programs, setPrograms] = useState([])
-  const [mentors,  setMentors]  = useState([])
-  const [showForm, setShowForm] = useState(false)
-  const [editing,  setEditing]  = useState(null)
-  const [form,     setForm]     = useState(empty)
-  const [error,    setError]    = useState('')
-  const [saving,   setSaving]   = useState(false)
-  const [search,   setSearch]   = useState('')
-  const [filter,   setFilter]   = useState('all')
+  const [programs,      setPrograms]      = useState([])
+  const [mentors,       setMentors]       = useState([])
+  const [showForm,      setShowForm]      = useState(false)
+  const [editing,       setEditing]       = useState(null)
+  const [form,          setForm]          = useState(empty)
+  const [error,         setError]         = useState('')
+  const [saving,        setSaving]        = useState(false)
+  const [search,        setSearch]        = useState('')
+  const [filter,        setFilter]        = useState('all')
+  const [coverFile,     setCoverFile]     = useState(null)
+  const [coverPreview,  setCoverPreview]  = useState(null)
+  const coverInputRef = useRef(null)
 
   const load = () => Promise.all([
     api.get('/api/admin/programs').then(r => setPrograms(r.data)),
@@ -135,21 +140,38 @@ export default function AdminPrograms() {
   ])
   useEffect(() => { load() }, [])
 
-  const openCreate = () => { setEditing(null); setForm(empty); setError(''); setShowForm(true) }
+  const openCreate = () => { setEditing(null); setForm(empty); setCoverFile(null); setError(''); setShowForm(true) }
   const openEdit   = p => {
     setEditing(p.program_id)
     setForm({ title: p.title, description: p.description || '', category: p.category || '',
                duration_weeks: p.duration_weeks || '', start_date: p.start_date || '',
-               end_date: p.end_date || '', assigned_mentor: p.assigned_mentor || '', status: p.status })
+               end_date: p.end_date || '', assigned_mentor: p.assigned_mentor || '', status: p.status,
+               cover_image: p.cover_image || '' })
+    setCoverFile(null)
     setError(''); setShowForm(true)
+  }
+
+  const handleCoverChange = e => {
+    const file = e.target.files[0]
+    if (!file) return
+    setCoverFile(file)
+    setCoverPreview(URL.createObjectURL(file))
   }
 
   const handleSubmit = async e => {
     e.preventDefault(); setError(''); setSaving(true)
     try {
-      if (editing) await api.put(`/api/admin/programs/${editing}`, form)
-      else         await api.post('/api/admin/programs', form)
-      setShowForm(false); load()
+      let coverUrl = form.cover_image
+      if (coverFile) {
+        const fd = new FormData()
+        fd.append('file', coverFile)
+        const r = await api.post('/api/upload-cover', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+        coverUrl = r.data.url
+      }
+      const payload = { ...form, cover_image: coverUrl }
+      if (editing) await api.put(`/api/admin/programs/${editing}`, payload)
+      else         await api.post('/api/admin/programs', payload)
+      setShowForm(false); setCoverFile(null); setCoverPreview(null); load()
     } catch (err) { setError(err.response?.data?.detail || 'Error saving program') }
     finally { setSaving(false) }
   }
@@ -268,7 +290,7 @@ export default function AdminPrograms() {
                 <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', margin: '0 0 4px' }}>{editing ? 'Edit Program' : 'New Program'}</h2>
                 <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>{editing ? 'Update program details' : 'Fill in the details to create a new program'}</p>
               </div>
-              <button onClick={() => setShowForm(false)}
+              <button onClick={() => { setShowForm(false); setCoverFile(null); setCoverPreview(null) }}
                 style={{ width: 34, height: 34, borderRadius: '50%', border: 'none', background: '#f1f5f9', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: '#64748b' }}>✕</button>
             </div>
 
@@ -311,6 +333,28 @@ export default function AdminPrograms() {
                     onFocus={e => e.target.style.borderColor = '#059669'} onBlur={e => e.target.style.borderColor = '#e2e8f0'} />
                 </div>
                 <div style={{ gridColumn: '1 / -1' }}>
+                  <p style={lbl}>Cover Image</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    {(coverPreview || form.cover_image) && (
+                      <img src={coverPreview || form.cover_image} alt="cover"
+                        style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 10, border: '1.5px solid #e2e8f0', flexShrink: 0 }} />
+                    )}
+                    <div style={{ flex: 1 }}>
+                      <input ref={coverInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleCoverChange} />
+                      <button type="button" onClick={() => coverInputRef.current?.click()}
+                        style={{ padding: '9px 18px', borderRadius: 10, border: '1.5px solid #e2e8f0', background: '#f8fafc', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#475569' }}>
+                        {coverPreview || form.cover_image ? '🔄 Change Image' : '📷 Upload Cover Image'}
+                      </button>
+                      {(coverPreview || form.cover_image) && (
+                        <button type="button" onClick={() => { setCoverFile(null); setCoverPreview(null); setForm(p => ({ ...p, cover_image: '' })); if (coverInputRef.current) coverInputRef.current.value = '' }}
+                          style={{ marginLeft: 8, padding: '9px 14px', borderRadius: 10, border: '1.5px solid #fecaca', background: '#fef2f2', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#dc2626' }}>
+                          ✕ Remove
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ gridColumn: '1 / -1' }}>
                   <p style={lbl}>Assign Mentor</p>
                   <select style={inp} value={form.assigned_mentor} onChange={f('assigned_mentor')}
                     onFocus={e => e.target.style.borderColor = '#059669'} onBlur={e => e.target.style.borderColor = '#e2e8f0'}>
@@ -333,7 +377,7 @@ export default function AdminPrograms() {
                   style={{ flex: 1, padding: '12px 0', borderRadius: 10, border: 'none', cursor: saving ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 700, color: '#fff', background: saving ? '#6ee7b7' : 'linear-gradient(135deg,#059669,#10b981)', boxShadow: '0 4px 14px rgba(5,150,105,0.35)' }}>
                   {saving ? 'Saving…' : editing ? 'Update Program' : 'Create Program'}
                 </button>
-                <button type="button" onClick={() => setShowForm(false)}
+                <button type="button" onClick={() => { setShowForm(false); setCoverFile(null); setCoverPreview(null) }}
                   style={{ flex: 1, padding: '12px 0', borderRadius: 10, border: '1.5px solid #e2e8f0', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#64748b', background: '#fff' }}>
                   Cancel
                 </button>

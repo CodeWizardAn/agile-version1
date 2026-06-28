@@ -430,10 +430,12 @@ export default function MenteeSessions() {
                     opacity: isLocked ? 0.85 : 1 }}>
 
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-          <div style={{ width: 42, height: 42, borderRadius: 12, flexShrink: 0,
+          <div style={{ width: 42, height: 42, borderRadius: 12, flexShrink: 0, overflow: 'hidden',
                         background: isLocked ? '#f1f5f9' : isLive ? '#ede9fe' : isRec ? '#f5f3ff' : '#eff6ff',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
-            {isLocked ? '🔒' : isDone ? '✅' : isLive ? '🔴' : isRec ? '📹' : '🎥'}
+            {s.cover_image && !isLocked
+              ? <img src={s.cover_image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : (isLocked ? '🔒' : isDone ? '✅' : isLive ? '🔴' : isRec ? '📹' : '🎥')}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ fontSize: 14, fontWeight: 700, color: isLocked ? '#94a3b8' : '#1e293b',

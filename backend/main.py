@@ -44,12 +44,13 @@ from email_service import (
 
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+ALLOWED_ORIGINS = [o.strip() for o in FRONTEND_URL.split(",") if o.strip()]
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_URL],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -230,6 +231,7 @@ class CreateProgramBody(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
     assigned_mentor: Optional[str] = None
+    cover_image: Optional[str] = None
 
 class UpdateProgramBody(BaseModel):
     title: Optional[str] = None
@@ -240,6 +242,7 @@ class UpdateProgramBody(BaseModel):
     end_date: Optional[str] = None
     assigned_mentor: Optional[str] = None
     status: Optional[str] = None
+    cover_image: Optional[str] = None
 
 class CreateSessionBody(BaseModel):
     program_id: str
@@ -251,8 +254,9 @@ class CreateSessionBody(BaseModel):
     meeting_link: Optional[str] = None
     video_url: Optional[str] = None
     duration_minutes: Optional[int] = None
+    cover_image: Optional[str] = None
 
-    @field_validator('mentor_id', 'description', 'scheduled_at', 'meeting_link', 'video_url', mode='before')
+    @field_validator('mentor_id', 'description', 'scheduled_at', 'meeting_link', 'video_url', 'cover_image', mode='before')
     @classmethod
     def empty_str_to_none(cls, v):
         return None if v == '' else v
@@ -272,8 +276,9 @@ class UpdateSessionBody(BaseModel):
     video_url: Optional[str] = None
     duration_minutes: Optional[int] = None
     status: Optional[str] = None
+    cover_image: Optional[str] = None
 
-    @field_validator('description', 'scheduled_at', 'meeting_link', 'video_url', 'status', mode='before')
+    @field_validator('description', 'scheduled_at', 'meeting_link', 'video_url', 'status', 'cover_image', mode='before')
     @classmethod
     def empty_str_to_none(cls, v):
         return None if v == '' else v
@@ -599,6 +604,12 @@ def admin_delete_user(user_id: str, current_user: User = Depends(require_admin),
 
 # ── ADMIN: Programs ───────────────────────────────────────────────────────────
 
+@app.post("/api/upload-cover")
+async def upload_cover_image(file: UploadFile = File(...), current_user: User = Depends(require_user)):
+    contents = await file.read()
+    url = upload_file(contents, folder="agilementor/covers", resource_type="image")
+    return {"url": url}
+
 @app.get("/api/admin/programs")
 def admin_get_programs(current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
     programs = db.query(Program).all()
@@ -609,7 +620,8 @@ def admin_get_programs(current_user: User = Depends(require_admin), db: Session 
              "start_date": str(p.start_date) if p.start_date else None,
              "end_date": str(p.end_date) if p.end_date else None,
              "status": p.status, "assigned_mentor": p.assigned_mentor,
-             "mentor_name": mentors.get(p.assigned_mentor)} for p in programs]
+             "mentor_name": mentors.get(p.assigned_mentor),
+             "cover_image": p.cover_image} for p in programs]
 
 @app.post("/api/admin/programs")
 def admin_create_program(body: CreateProgramBody, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
@@ -620,7 +632,8 @@ def admin_create_program(body: CreateProgramBody, current_user: User = Depends(r
         category=body.category, duration_weeks=body.duration_weeks,
         start_date=body.start_date, end_date=body.end_date,
         created_by=current_user.user_id,
-        assigned_mentor=body.assigned_mentor or None, status="active"
+        assigned_mentor=body.assigned_mentor or None, status="active",
+        cover_image=body.cover_image
     )
     db.add(program)
     db.commit()
@@ -639,6 +652,7 @@ def admin_update_program(program_id: str, body: UpdateProgramBody, current_user:
     if body.end_date: program.end_date = body.end_date
     if body.assigned_mentor: program.assigned_mentor = body.assigned_mentor
     if body.status: program.status = body.status
+    if body.cover_image is not None: program.cover_image = body.cover_image or None
     db.commit()
     return {"success": True}
 
@@ -678,6 +692,7 @@ def admin_get_sessions(current_user: User = Depends(require_admin), db: Session 
              "scheduled_at": str(s.scheduled_at) if s.scheduled_at else None,
              "meeting_link": s.meeting_link, "video_url": s.video_url,
              "duration_minutes": s.duration_minutes, "status": s.status,
+             "cover_image": s.cover_image,
              "created_at": str(s.created_at)} for s in sessions]
 
 @app.post("/api/admin/sessions")
@@ -693,7 +708,8 @@ def admin_create_session(body: CreateSessionBody, current_user: User = Depends(r
         session_id=session_id, program_id=body.program_id, mentor_id=body.mentor_id,
         title=body.title, description=body.description, session_type=body.session_type,
         scheduled_at=scheduled_at, meeting_link=body.meeting_link,
-        video_url=body.video_url, duration_minutes=body.duration_minutes, status="scheduled"
+        video_url=body.video_url, duration_minutes=body.duration_minutes, status="scheduled",
+        cover_image=body.cover_image
     )
     db.add(session)
     db.commit()
@@ -746,6 +762,7 @@ def admin_update_session(session_id: str, body: UpdateSessionBody, current_user:
     if body.video_url: session.video_url = body.video_url
     if body.duration_minutes: session.duration_minutes = body.duration_minutes
     if body.status: session.status = body.status
+    if body.cover_image is not None: session.cover_image = body.cover_image or None
     db.commit()
     return {"success": True}
 
@@ -937,6 +954,7 @@ def mentor_get_sessions(current_user: User = Depends(require_mentor), db: Sessio
              "scheduled_at": str(s.scheduled_at) if s.scheduled_at else None,
              "meeting_link": s.meeting_link, "video_url": s.video_url,
              "duration_minutes": s.duration_minutes, "status": s.status,
+             "cover_image": s.cover_image,
              "avg_rating": avg_r(s.session_id), "rating_count": len(fb_map.get(s.session_id, []))} for s in sessions]
 
 @app.get("/api/mentor/programs")
@@ -972,7 +990,8 @@ def mentor_create_session(body: CreateSessionBody, current_user: User = Depends(
         mentor_id=mentor.mentor_profile_id, title=body.title, description=body.description,
         session_type=body.session_type, scheduled_at=scheduled_at,
         meeting_link=body.meeting_link, video_url=body.video_url,
-        duration_minutes=body.duration_minutes, status="scheduled"
+        duration_minutes=body.duration_minutes, status="scheduled",
+        cover_image=body.cover_image
     )
     db.add(session)
     db.commit()
@@ -1029,6 +1048,7 @@ def mentor_update_session(session_id: str, body: UpdateSessionBody,
     if body.video_url: session.video_url = body.video_url
     if body.duration_minutes: session.duration_minutes = body.duration_minutes
     if body.status: session.status = body.status
+    if body.cover_image is not None: session.cover_image = body.cover_image or None
     db.commit()
     return {"success": True}
 
@@ -1271,7 +1291,8 @@ def get_programs(current_user: User = Depends(require_user), db: Session = Depen
              "category": p.category, "duration_weeks": p.duration_weeks,
              "mentor_name": mentors.get(p.assigned_mentor),
              "start_date": str(p.start_date) if p.start_date else None,
-             "end_date": str(p.end_date) if p.end_date else None} for p in programs]
+             "end_date": str(p.end_date) if p.end_date else None,
+             "cover_image": p.cover_image} for p in programs]
 
 # Alias used by mentee Browse Programs page
 @app.get("/api/mentee/programs/browse")
@@ -1283,7 +1304,8 @@ def mentee_browse_programs(current_user: User = Depends(require_mentee), db: Ses
              "category": p.category, "duration_weeks": p.duration_weeks,
              "mentor_name": mentors.get(p.assigned_mentor),
              "start_date": str(p.start_date) if p.start_date else None,
-             "end_date": str(p.end_date) if p.end_date else None} for p in programs]
+             "end_date": str(p.end_date) if p.end_date else None,
+             "cover_image": p.cover_image} for p in programs]
 
 class EnrollBody(BaseModel):
     program_id: str
@@ -1482,6 +1504,7 @@ def my_sessions(current_user: User = Depends(require_mentee), db: Session = Depe
          "scheduled_at": str(s.scheduled_at) if s.scheduled_at else None,
          "meeting_link": s.meeting_link, "video_url": s.video_url,
          "duration_minutes": s.duration_minutes, "status": s.status,
+         "cover_image": s.cover_image,
          "is_completed": s.session_id in completions,
          "access_locked": s.program_id in pending_prog_ids}
         for s in sessions

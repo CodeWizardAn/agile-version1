@@ -15,5 +15,6 @@ class Session(Base):
     meeting_link = Column(String(255))       # only for live
     video_url = Column(String(255))          # only for recorded
     duration_minutes = Column(Integer)
+    cover_image = Column(String(500))
     status = Column(String(15), default="scheduled")  # scheduled/completed/cancelled
     created_at = Column(DateTime, server_default=func.now())

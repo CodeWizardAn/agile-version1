@@ -23,9 +23,13 @@ function ProgramCard({ p, idx, enrolled, pending, enrolling, onEnroll }) {
   return (
     <div style={{ background: '#fff', borderRadius: 20, boxShadow: open ? '0 10px 36px rgba(0,0,0,0.12)' : '0 1px 8px rgba(0,0,0,0.06)', border: `1.5px solid ${open ? '#e2e8f0' : '#f1f5f9'}`, overflow: 'hidden', display: 'flex', flexDirection: 'column', transition: 'box-shadow 0.22s, border-color 0.22s' }}>
 
-      {/* Gradient header banner */}
-      <div style={{ background: grad, padding: '28px 24px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', position: 'relative', minHeight: 100 }}>
-        <span style={{ fontSize: 46, lineHeight: 1 }}>{emoji}</span>
+      {/* Banner: cover image if present, else gradient */}
+      <div style={{ background: p.cover_image ? '#f8fafc' : grad, padding: '0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', position: 'relative', minHeight: 100, overflow: 'hidden' }}>
+        {p.cover_image && (
+          <img src={p.cover_image} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+        )}
+        <div style={{ position: 'relative', zIndex: 1, width: '100%', padding: '28px 24px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', background: p.cover_image ? 'rgba(0,0,0,0.35)' : 'transparent' }}>
+        {!p.cover_image && <span style={{ fontSize: 46, lineHeight: 1 }}>{emoji}</span>}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
           {pending && (
             <div style={{ background: 'rgba(255,255,255,0.9)', borderRadius: 50, padding: '4px 12px', fontSize: 11, fontWeight: 700, color: '#92400e' }}>
@@ -42,6 +46,7 @@ function ProgramCard({ p, idx, enrolled, pending, enrolling, onEnroll }) {
               📅 {p.duration_weeks}w
             </div>
           )}
+        </div>
         </div>
       </div>
 
