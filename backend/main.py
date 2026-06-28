@@ -48,6 +48,7 @@ from email_service import (
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 ALLOWED_ORIGINS = [o.strip() for o in FRONTEND_URL.split(",") if o.strip()]
+PRODUCTION = os.getenv("ENVIRONMENT", "development").lower() == "production"
 
 limiter = Limiter(key_func=get_remote_address)
 app = FastAPI()
@@ -436,7 +437,7 @@ def login(role: str, request: Request, body: LoginBody, db: Session = Depends(ge
             "profile_photo": user.profile_photo,
         }
     })
-    response.set_cookie(key="access_token", value=token, httponly=True, samesite="lax")
+    response.set_cookie(key="access_token", value=token, httponly=True, samesite="lax", secure=PRODUCTION)
     return response
 
 @app.post("/api/auth/logout")
