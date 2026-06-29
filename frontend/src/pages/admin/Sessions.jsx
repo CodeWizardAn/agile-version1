@@ -7,11 +7,17 @@ const empty = { program_id: '', mentor_id: '', title: '', description: '', sessi
 const inp = { width: '100%', padding: '11px 14px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontSize: 13, color: '#1e293b', outline: 'none', background: '#fafafa', boxSizing: 'border-box', fontFamily: 'inherit' }
 const lbl = { display: 'block', fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 6, letterSpacing: '0.02em' }
 
-const STATUS_STYLE = {
-  scheduled:  { bg: '#eff6ff', color: '#1d4ed8' },
-  completed:  { bg: '#f0fdf4', color: '#15803d' },
-  cancelled:  { bg: '#fef2f2', color: '#dc2626' },
-  live:       { bg: '#fef9c3', color: '#92400e' },
+function getSessionStatus(s) {
+  if (s.status === 'cancelled') return { label: 'Cancelled', bg: '#fef2f2', color: '#dc2626' }
+  if (s.status === 'live')     return { label: '🔴 Live Now', bg: '#fef9c3', color: '#92400e' }
+  if (s.session_type === 'recorded') return { label: 'Available', bg: '#f5f3ff', color: '#6d28d9' }
+  if (s.status === 'completed') return { label: 'Completed', bg: '#f0fdf4', color: '#15803d' }
+  if (s.scheduled_at) {
+    const now = new Date()
+    const end = new Date(new Date(s.scheduled_at).getTime() + (s.duration_minutes || 60) * 60000)
+    if (end < now) return { label: 'Completed', bg: '#f0fdf4', color: '#15803d' }
+  }
+  return { label: 'Upcoming', bg: '#eff6ff', color: '#1d4ed8' }
 }
 
 export default function AdminSessions() {
@@ -248,7 +254,7 @@ export default function AdminSessions() {
             {sessions.length === 0 ? (
               <tr><td colSpan={7} style={{ padding: '60px 20px', textAlign: 'center', color: '#94a3b8', fontSize: 14 }}>No sessions yet</td></tr>
             ) : sessions.map((s, i) => {
-              const st = STATUS_STYLE[s.status] || { bg: '#f8fafc', color: '#64748b' }
+              const st = getSessionStatus(s)
               const prog = programs.find(p => p.program_id === s.program_id)
               return (
                 <tr key={s.session_id} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa', borderBottom: '1px solid #f8fafc' }}>
@@ -271,7 +277,7 @@ export default function AdminSessions() {
                   </td>
                   <td style={{ padding: '13px 18px', fontSize: 13, color: '#64748b' }}>{s.duration_minutes ? `${s.duration_minutes}m` : '—'}</td>
                   <td style={{ padding: '13px 18px' }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 50, background: st.bg, color: st.color }}>{s.status}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 50, background: st.bg, color: st.color }}>{st.label}</span>
                   </td>
                   <td style={{ padding: '13px 18px' }}>
                     <div style={{ display: 'flex', gap: 12 }}>
