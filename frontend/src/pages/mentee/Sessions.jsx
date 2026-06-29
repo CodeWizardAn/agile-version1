@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import MenteeLayout from '../../components/layouts/MenteeLayout'
 import api from '../../api/client'
+import { toast } from '../../utils/toast'
 
 // ─── URL helpers ─────────────────────────────────────────────────────────────
 const isYouTube = url => /youtube\.com|youtu\.be/.test(url || '')
@@ -25,7 +26,7 @@ function StarRatingWidget({ sessionId, initial, onSubmitted }) {
       await api.post(`/api/mentee/sessions/${sessionId}/rate`, { rating: selected, comments })
       setMode('view')
       onSubmitted?.({ rating: selected, comments })
-    } catch (e) { alert(e.response?.data?.detail || 'Failed to submit') }
+    } catch (e) { toast(e.response?.data?.detail || 'Failed to submit') }
     finally { setSaving(false) }
   }
 
@@ -373,7 +374,7 @@ export default function MenteeSessions() {
       activeJoinsRef.current.add(id)
       setActiveJoins(prev => new Set([...prev, id]))
     } catch (err) {
-      alert(err.response?.data?.detail || 'Could not mark session joined')
+      toast(err.response?.data?.detail || 'Could not mark session joined')
     } finally { setJoining(null) }
   }
 

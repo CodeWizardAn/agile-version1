@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import AdminLayout from '../../components/layouts/AdminLayout'
 import api from '../../api/client'
+import { toast } from '../../utils/toast'
 
 export default function AdminAttendance() {
   const [sessions,     setSessions]     = useState([])
@@ -26,7 +27,7 @@ export default function AdminAttendance() {
       await api.post(`/api/admin/attendance/${selected}/mark`, { user_id: userId, status })
       await loadAttendance(selected)
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to mark attendance')
+      toast(err.response?.data?.detail || 'Failed to mark attendance')
     } finally {
       setMarking(null)
     }

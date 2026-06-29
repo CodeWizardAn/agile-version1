@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import AdminLayout from '../../components/layouts/AdminLayout'
 import api from '../../api/client'
+import { toast } from '../../utils/toast'
 
 const empty = { title: '', description: '', category: '', duration_weeks: '', start_date: '', end_date: '', assigned_mentor: '', cover_image: '' }
 
@@ -194,7 +195,7 @@ export default function AdminPrograms() {
       await api.delete(`/api/admin/programs/${id}`)
       load()
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to delete program')
+      toast(err.response?.data?.detail || 'Failed to delete program')
     }
   }
 

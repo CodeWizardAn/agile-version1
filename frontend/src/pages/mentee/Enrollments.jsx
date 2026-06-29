@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import MenteeLayout from '../../components/layouts/MenteeLayout'
 import api from '../../api/client'
+import { toast } from '../../utils/toast'
 
 const STATUS_STYLE = {
   pending:               { bg: '#fffbeb', color: '#92400e', label: '⏳ Pending Approval' },
@@ -24,7 +25,7 @@ export default function MenteeEnrollments() {
       await api.delete(`/api/mentee/enrollments/${id}`)
       load()
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to unenroll')
+      toast(err.response?.data?.detail || 'Failed to unenroll')
     }
   }
 

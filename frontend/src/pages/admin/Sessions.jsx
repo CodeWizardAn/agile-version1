@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import AdminLayout from '../../components/layouts/AdminLayout'
 import api from '../../api/client'
+import { toast } from '../../utils/toast'
 
 const empty = { program_id: '', mentor_id: '', title: '', description: '', session_type: 'live', scheduled_at: '', meeting_link: '', video_url: '', duration_minutes: '', cover_image: '' }
 
@@ -94,7 +95,7 @@ export default function AdminSessions() {
       await api.delete(`/api/admin/sessions/${id}`)
       load()
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to delete session')
+      toast(err.response?.data?.detail || 'Failed to delete session')
     }
   }
 

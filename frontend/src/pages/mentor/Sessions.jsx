@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import MentorLayout from '../../components/layouts/MentorLayout'
 import api from '../../api/client'
+import { toast } from '../../utils/toast'
 
 function StarDisplay({ rating, size = 14 }) {
   return (
@@ -202,7 +203,7 @@ export default function MentorSessions() {
       await api.delete(`/api/mentor/sessions/${id}`)
       load()
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to delete session')
+      toast(err.response?.data?.detail || 'Failed to delete session')
     }
   }
 

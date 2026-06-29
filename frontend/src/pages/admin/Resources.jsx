@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import AdminLayout from '../../components/layouts/AdminLayout'
 import api from '../../api/client'
+import { toast } from '../../utils/toast'
 
 const FILE_ICONS  = { pdf: '📄', image: '🖼️', video: '🎬', doc: '📝', ppt: '📊', excel: '📊', txt: '📃' }
 const FILE_COLORS = { pdf: '#fef2f2', image: '#f0fdf4', video: '#eff6ff', doc: '#fafafa', ppt: '#fff7ed' }
@@ -49,7 +50,7 @@ export default function AdminResources() {
       await api.delete(`/api/admin/resources/${id}`)
       load()
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to delete resource')
+      toast(err.response?.data?.detail || 'Failed to delete resource')
     }
   }
 

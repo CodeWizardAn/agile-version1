@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import AdminLayout from '../../components/layouts/AdminLayout'
 import api from '../../api/client'
+import { toast } from '../../utils/toast'
 
 const ROLE_STYLE = {
   mentor:  { bg: '#f0fdfa', color: '#0f766e', label: 'Mentor' },
@@ -26,7 +27,7 @@ export default function AdminUsers() {
       await api.delete(`/api/admin/users/${id}`)
       setUsers(u => u.filter(x => x.user_id !== id))
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to delete user')
+      toast(err.response?.data?.detail || 'Failed to delete user')
     }
   }
 

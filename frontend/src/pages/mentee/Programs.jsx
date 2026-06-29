@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import MenteeLayout from '../../components/layouts/MenteeLayout'
 import api from '../../api/client'
+import { toast } from '../../utils/toast'
 
 const C = '#7c3aed'
 
@@ -151,7 +152,7 @@ export default function MenteePrograms() {
       await api.post('/api/mentee/enrollments', { program_id: id })
       setPendingIds(s => new Set([...s, id]))
     } catch (err) {
-      alert(err.response?.data?.detail || 'Request failed')
+      toast(err.response?.data?.detail || 'Request failed')
     } finally { setEnrolling(null) }
   }
 

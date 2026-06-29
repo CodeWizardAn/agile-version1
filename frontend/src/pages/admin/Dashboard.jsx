@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import AdminLayout from '../../components/layouts/AdminLayout'
 import { useAuth } from '../../context/AuthContext'
 import api from '../../api/client'
+import { toast } from '../../utils/toast'
 
 const C = '#059669'   // emerald accent
 
@@ -95,7 +96,7 @@ export default function AdminDashboard() {
     try {
       await api.post(`/api/admin/enrollment-requests/${id}/approve`)
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to approve')
+      toast(err.response?.data?.detail || 'Failed to approve')
     } finally {
       await loadRequests(); setActing(null)
     }
@@ -106,7 +107,7 @@ export default function AdminDashboard() {
     try {
       await api.post(`/api/admin/enrollment-requests/${id}/reject`)
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to reject')
+      toast(err.response?.data?.detail || 'Failed to reject')
     } finally {
       await loadRequests(); setActing(null)
     }
