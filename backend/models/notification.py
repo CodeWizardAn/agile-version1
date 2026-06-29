@@ -5,7 +5,7 @@ from database import Base
 class Notification(Base):
     __tablename__ = "notifications"
     notification_id = Column(String(10), primary_key=True)
-    user_id = Column(String)
+    user_id = Column(String(10))
     title = Column(String(200))
     message = Column(String(500))
     notif_type = Column(String(50))

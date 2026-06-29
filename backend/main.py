@@ -1788,18 +1788,40 @@ def update_video_progress(payload: VideoSegmentBody, current_user: User = Depend
     is_complete = duration_seconds > 0 and merged_seconds >= duration_seconds * 0.95
     db.commit()
 
-    if is_complete and not db.query(SessionCompletion).filter(
-        SessionCompletion.user_id == current_user.user_id,
-        SessionCompletion.session_id == payload.session_id
-    ).first():
-        completion = SessionCompletion(
-            completion_id=generate_completion_id(db), user_id=current_user.user_id,
-            session_id=payload.session_id, program_id=session.program_id, completed=True
-        )
-        db.add(completion)
-        db.commit()
+    if is_complete:
+        if not db.query(SessionCompletion).filter(
+            SessionCompletion.user_id == current_user.user_id,
+            SessionCompletion.session_id == payload.session_id
+        ).first():
+            completion = SessionCompletion(
+                completion_id=generate_completion_id(db), user_id=current_user.user_id,
+                session_id=payload.session_id, program_id=session.program_id, completed=True
+            )
+            db.add(completion)
+            db.commit()
+            _check_certificate_eligibility(current_user.user_id, session.program_id, db)
 
-        _check_certificate_eligibility(current_user.user_id, session.program_id, db)
+        # Mark attendance as present for recorded sessions when video is fully watched
+        att = db.query(Attendance).filter(
+            Attendance.session_id == payload.session_id,
+            Attendance.user_id == current_user.user_id
+        ).first()
+        if not att:
+            att = Attendance(
+                attendance_id=generate_attendance_id(db),
+                session_id=payload.session_id,
+                user_id=current_user.user_id,
+                status="present",
+                join_intervals="[]",
+                total_minutes_present=session.duration_minutes or 0,
+                is_auto_marked="true"
+            )
+            db.add(att)
+            db.commit()
+        elif att.status != "present":
+            att.status = "present"
+            att.is_auto_marked = "true"
+            db.commit()
 
     return {
         "total_watched": merged_seconds,
