@@ -1,8 +1,9 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import PrivateRoute from './components/PrivateRoute'
 
 import Home from './pages/Home'
+import NotFound from './pages/NotFound'
 import Login from './pages/auth/Login'
 import Signup from './pages/auth/Signup'
 import VerifyEmail from './pages/auth/VerifyEmail'
@@ -66,7 +67,7 @@ export default function App() {
           <Route path="/mentee/attendance" element={<PrivateRoute role="mentee"><MyAttendance /></PrivateRoute>} />
           <Route path="/mentee/resources" element={<PrivateRoute role="mentee"><MyResources /></PrivateRoute>} />
 
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
