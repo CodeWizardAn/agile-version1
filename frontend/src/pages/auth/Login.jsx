@@ -195,14 +195,18 @@ export default function Login() {
 
 function HomeButton() {
   return (
-    <Link to="/" style={{
+    <Link to="/" className="am-home-btn" style={{
       position: 'fixed', top: 20, left: 20, zIndex: 50,
       display: 'flex', alignItems: 'center', gap: 7,
-      background: '#fff', border: '1px solid #e2e8f0',
-      boxShadow: '0 2px 10px rgba(0,0,0,0.12)',
+      background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.16)',
+      backdropFilter: 'blur(8px)',
       borderRadius: 10, padding: '9px 16px',
-      color: '#0f172a', fontSize: 13, fontWeight: 700, textDecoration: 'none',
-    }}>
+      color: '#cbd5e1', fontSize: 13, fontWeight: 600, textDecoration: 'none',
+      transition: 'background 0.15s, color 0.15s',
+    }}
+    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.14)'; e.currentTarget.style.color = '#fff' }}
+    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#cbd5e1' }}
+    >
       ← Home
     </Link>
   )
