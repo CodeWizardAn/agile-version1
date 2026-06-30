@@ -15,7 +15,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, text
 from pydantic import BaseModel, field_validator
 from typing import Optional
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -389,7 +389,8 @@ def detect_file_type(filename: str) -> str:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @app.get("/health")
-def health_check():
+def health_check(db: Session = Depends(get_db)):
+    db.execute(text("SELECT 1"))
     return {"status": "ok"}
 
 @app.get("/api/me")
